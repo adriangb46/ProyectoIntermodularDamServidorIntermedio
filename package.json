@@ -1,0 +1,20 @@
+{
+  "name": "middle_server",
+  "version": "1.0.0",
+  "description": "middle server of the intermodular proyect ",
+  "homepage": "https://github.com/adriangb46/ProyectoIntermodularDamServidorIntermedio#readme",
+  "bugs": {
+    "url": "https://github.com/adriangb46/ProyectoIntermodularDamServidorIntermedio/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adriangb46/ProyectoIntermodularDamServidorIntermedio.git"
+  },
+  "license": "ISC",
+  "author": "Adrián González Blando & Adriana Cabaleiro Álvarez",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm run test"
+  }
+}
