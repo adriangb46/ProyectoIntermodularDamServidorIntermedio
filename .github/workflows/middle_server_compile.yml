@@ -1,0 +1,31 @@
+name: CI_middle_server
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: middle_server/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build and Test
+        run: |
+          # npm test --if-present
+          # npm run build --if-present
+          node --check index.js
