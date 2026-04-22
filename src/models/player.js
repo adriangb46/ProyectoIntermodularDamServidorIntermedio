@@ -24,7 +24,7 @@ export class Player {
     this.eliminated = false;
     
     // Conectividad
-    this.connectedSocketId = null;
+    this.connectedSocketId = null;  //pregunatr si metemos un socket por partida o por usuario.
     
     // Pertenencias
     this.troops = [];             // Array de instancias de la clase Troop

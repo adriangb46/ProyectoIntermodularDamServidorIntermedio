@@ -10,7 +10,7 @@ export class Game {
    */
   constructor({ id, maxPlayers }) {
     this.id = id;
-    this.maxPlayers = maxPlayers;
+    this.maxPlayers = maxPlayers; //revisar pasar a constante.
     this.phase = 'waiting';      // Fases: waiting | preparation | war | end | finished
     this.startedAt = null;       // Timestamp de inicio real
     
@@ -51,7 +51,7 @@ export class Game {
   setPhase(newPhase) {
     this.phase = newPhase;
     if (newPhase === 'preparation' && !this.startedAt) {
-      this.startedAt = Date.now();
+      this.startedAt = Date.now();  // se guarda en memoria el momento de comienzo de la partida
     }
   }
 

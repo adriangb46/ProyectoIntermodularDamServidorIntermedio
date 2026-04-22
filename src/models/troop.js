@@ -54,7 +54,7 @@ export class Troop {
   takeDamage(points) {
     const damageDealt = Math.min(this.currentPoints, points);
     this.currentPoints -= damageDealt;
-    return points - damageDealt;
+    return points - damageDealt;  //pasa el daño a la siguiente tropa
   }
 
   /**
