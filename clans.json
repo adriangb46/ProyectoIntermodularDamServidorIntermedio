@@ -1,0 +1,53 @@
+{
+  "clans": {
+    "berserkers": {
+      "name": "Berserkers",
+      "archetype": "FURY",
+      "baseCapitalHealth": 1000,
+      "troops": {
+        "frenzied_warrior": {
+          "name": "Guerrero Frenético",
+          "type": "ATK",
+          "power": 60,
+          "trainingTimeSeconds": 30,
+          "cost": 50
+        }
+      }
+    },
+    "valkirias": {
+      "name": "Valkirias",
+      "archetype": "DIVINE",
+      "baseCapitalHealth": 1200,
+      "troops": {
+        "shield_maiden": {
+          "name": "Doncella Escudera",
+          "type": "ATK",
+          "power": 50,
+          "trainingTimeSeconds": 40,
+          "cost": 60
+        },
+        "divine_healer": {
+          "name": "Sanadora Divina",
+          "type": "HEAL",
+          "power": 30,
+          "trainingTimeSeconds": 45,
+          "cost": 70
+        }
+      }
+    },
+    "jarls": {
+      "name": "Jarls",
+      "archetype": "IRON",
+      "baseCapitalHealth": 1500,
+      "troops": {
+        "heavy_huscarle": {
+          "name": "Huscarle Pesado",
+          "type": "ATK",
+          "power": 75,
+          "trainingTimeSeconds": 50,
+          "cost": 100
+        }
+      }
+    }
+  }
+}
