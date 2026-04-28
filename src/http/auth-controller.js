@@ -53,3 +53,47 @@ export const loginController = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Controlador de Registro (HTTP REST)
+ * Recibe los datos de registro del Frontend y los pasará al DB Server.
+ * Devuelve un JWT de sesión al igual que el login.
+ */
+export const registerController = async (req, res, next) => {
+  try {
+    const { username, email, password } = req.body;
+
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: "Usuario, email y contraseña son requeridos" });
+    }
+
+    // 1. Llamada REST al DB Server (Spring Boot)
+    // Cuando Dev B lo implemente, esto será:
+    // const dbResponse = await dbConnector.registerUser(username, email, password);
+
+    // -- TODO: Eliminar este mock cuando el dbConnector esté listo --
+    console.log(`[Taquilla] Registrando nuevo usuario en DB Server: ${username} (${email})`);
+    const isMockValid = username.length > 2 && password.length > 3; // MOCK
+    if (!isMockValid) {
+      return res.status(400).json({ message: "Datos de registro inválidos" });
+    }
+    const dbResponse = { username, role: 'USER' }; // MOCK
+    // ---------------------------------------------------------------
+
+    // 2. Fabricar el JWT
+    const token = jwt.sign(
+      {
+        sub: dbResponse.username,
+        role: dbResponse.role,
+      },
+      config.jwtSecret,
+      { expiresIn: '2h' }
+    );
+
+    // 3. Devolver el token al frontend
+    return res.status(201).json({ token });
+
+  } catch (error) {
+    next(error);
+  }
+};
