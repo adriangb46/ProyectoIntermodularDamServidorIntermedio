@@ -6,6 +6,8 @@ import { config } from './src/config/index.js';
 import { httpRouter } from './src/http/routes.js';
 import { socketAuthMiddleware } from './src/middleware/auth.js';
 import { initSocketHandler } from './src/connectors/socket-handler.js';
+import { TimeWheel } from './src/game/engine/time-wheel.js';
+import { gameStore } from './src/game/state/game-store.js';
 
 // 1. Inicialización de Express (Servidor HTTP)
 const app = express();
@@ -42,9 +44,15 @@ io.use(socketAuthMiddleware);
 // 4. Iniciar Manejadores de Socket.IO
 initSocketHandler(io);
 
-// 4. Arrancar el servidor
+// 5. Arrancar el Time Wheel (motor de tiempo centralizado)
+// IMPORTANTE: se inicializa después de io para poder pasarle la referencia
+const timeWheel = new TimeWheel(gameStore, io, config);
+timeWheel.start();
+
+// 6. Arrancar el servidor HTTP
 httpServer.listen(config.port, () => {
   console.log(`🛡️ Middle Server corriendo en el puerto ${config.port}`);
   console.log(`🚀 Rutas HTTP mapeadas bajo /api`);
   console.log(`⚡ WebSockets listos y asegurados por JWT`);
+  console.log(`⏱️  Time Wheel activo (tick cada ${config.timeWheelTickMs}ms)`);
 });
