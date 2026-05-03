@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config/index.js';
 import { dbConnector } from '../connectors/db-connector.js';
+import crypto from 'crypto';
 
 /**
  * Controlador de Login (HTTP REST) — "La Taquilla"
@@ -40,6 +41,7 @@ export const loginController = async (req, res, next) => {
       {
         sub: dbResponse.username, // Sujeto estándar JWT — nombre de usuario
         role: dbResponse.role,    // Rol del usuario (USER | ADMIN)
+        jti: crypto.randomUUID()  // Identificador único de JWT (security.md §2)
       },
       config.jwtSecret,
       { expiresIn: '2h' } // Duración corta por seguridad
@@ -90,6 +92,7 @@ export const registerController = async (req, res, next) => {
       {
         sub: dbResponse.username,
         role: dbResponse.role,
+        jti: crypto.randomUUID()
       },
       config.jwtSecret,
       { expiresIn: '2h' }
