@@ -1,0 +1,872 @@
+# =============================================================================
+#  clans.yml — Configuración de los 6 Clanes Vikingos
+#  Generado según la especificación de diseño de juego v1.0
+#  Ciclo de ventajas:
+#    FURY > IRON > DIVINE > SHADOW > STORM > FROST > FURY  (hexagonal)
+#    con cada clan teniendo ventaja sobre 2 arquetipos y siendo derrotado por 2.
+# =============================================================================
+
+clans:
+
+  # ===========================================================================
+  # 1. BERSERKERS — FURY
+  # ===========================================================================
+  - id: berserkers
+    name: "Los Berserkers"
+    archetype: FURY
+    description: "Guerreros poseídos por la furia de Odín, incapaces de sentir dolor en el calor de la batalla. Su sed de sangre los convierte en armas vivientes sin igual."
+    color: "#C0392B"
+    baseCapitalHealth: 1000
+    advantages:
+      - IRON
+      - FROST
+
+    initialTroops:
+      - id: berserker_guerrero
+        name: "Guerrero Berserker"
+        type: ATK
+        power: 22
+        trainingTimeSeconds: 45
+        cost: 80
+
+      - id: corredor_de_furia
+        name: "Corredor de Furia"
+        type: ATK
+        power: 15
+        trainingTimeSeconds: 30
+        cost: 55
+
+    technologies:
+      # ── TIER 1 ─────────────────────────────────────────────────────────────
+      - id: bersk_furia_primordial
+        name: "Furia Primordial"
+        description: "Los berserkers canalizan la rabia ancestral de sus antepasados, aumentando su potencia de ataque base."
+        researchCost: 100
+        durationSeconds: 60
+        requirements: []
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: attack
+              multiplier: 1.15
+
+      - id: bersk_sed_de_sangre
+        name: "Sed de Sangre"
+        description: "El olor de la batalla aguza los sentidos de las tropas, incrementando su velocidad de movimiento en combate."
+        researchCost: 150
+        durationSeconds: 90
+        requirements: []
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: speed
+              multiplier: 1.20
+
+      # ── TIER 2 ─────────────────────────────────────────────────────────────
+      - id: bersk_grito_de_guerra
+        name: "Grito de Guerra"
+        description: "Un aullido aterrador eleva el fervor de combate de las unidades aliadas, amplificando el daño infligido."
+        researchCost: 350
+        durationSeconds: 200
+        requirements:
+          - bersk_furia_primordial
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: attack
+              multiplier: 1.20
+
+      - id: bersk_filo_runado
+        name: "Filo Rúnico"
+        description: "Los herreros graban símbolos de poder en las armas de guerra, desatando una nueva clase de devastador en el campo de batalla."
+        researchCost: 500
+        durationSeconds: 240
+        requirements:
+          - bersk_furia_primordial
+          - bersk_sed_de_sangre
+        unlocks:
+          troops:
+            - id: devastador_runico
+              name: "Devastador Rúnico"
+              type: ATK
+              power: 35
+              trainingTimeSeconds: 70
+              cost: 130
+
+      - id: bersk_piel_de_oso
+        name: "Piel de Oso"
+        description: "Los guerreros invocan el espíritu del oso sagrado, ganando una resistencia sobrenatural a los golpes del enemigo."
+        researchCost: 400
+        durationSeconds: 180
+        requirements:
+          - bersk_sed_de_sangre
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: defense
+              multiplier: 1.12
+
+      # ── TIER 3 ─────────────────────────────────────────────────────────────
+      - id: bersk_trance_berserker
+        name: "Trance Berserker"
+        description: "Los guerreros entran en un estado de trance divino donde sienten el doble de poder pero ignoran por completo el peligro."
+        researchCost: 900
+        durationSeconds: 450
+        requirements:
+          - bersk_grito_de_guerra
+          - bersk_piel_de_oso
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: attack
+              multiplier: 1.30
+
+      - id: bersk_furia_imparable
+        name: "Furia Imparable"
+        description: "La capital de los Berserkers irradia una energía salvaje que infunde terror en cualquier atacante que ose acercarse."
+        researchCost: 1000
+        durationSeconds: 600
+        requirements:
+          - bersk_filo_runado
+        unlocks:
+          buffs:
+            - target: capital
+              attribute: attack
+              multiplier: 1.25
+
+      - id: bersk_campeon_del_caos
+        name: "Campeón del Caos"
+        description: "La encarnación viviente de la destrucción vikinga; una unidad legendaria cuya presencia sola decide el destino de las batallas."
+        researchCost: 1500
+        durationSeconds: 900
+        requirements:
+          - bersk_trance_berserker
+          - bersk_furia_imparable
+        unlocks:
+          troops:
+            - id: campeon_del_caos
+              name: "Campeón del Caos"
+              type: ATK
+              power: 75
+              trainingTimeSeconds: 180
+              cost: 350
+
+
+  # ===========================================================================
+  # 2. VALKIRIAS — DIVINE
+  # ===========================================================================
+  - id: valkirias
+    name: "Las Valkirias"
+    archetype: DIVINE
+    description: "Mensajeras de los dioses y conductoras de almas, las Valkirias canalizan el poder de Asgard para sanar y fortalecer a sus aliados. Su gracia en batalla es superada únicamente por su ferocidad."
+    color: "#8E44AD"
+    baseCapitalHealth: 1500
+    advantages:
+      - FURY
+      - SHADOW
+
+    initialTroops:
+      - id: escudera_sagrada
+        name: "Escudera Sagrada"
+        type: DEF
+        power: 18
+        trainingTimeSeconds: 40
+        cost: 70
+
+      - id: sanadora_de_luz
+        name: "Sanadora de Luz"
+        type: HEAL
+        power: 20
+        trainingTimeSeconds: 50
+        cost: 85
+
+    technologies:
+      # ── TIER 1 ─────────────────────────────────────────────────────────────
+      - id: valk_bendicion_divina
+        name: "Bendición Divina"
+        description: "Las sacerdotisas invocan la gracia de Frigg, aumentando la vitalidad de todas las tropas aliadas en el campo."
+        researchCost: 120
+        durationSeconds: 70
+        requirements: []
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: health
+              multiplier: 1.15
+
+      - id: valk_luz_de_asgard
+        name: "Luz de Asgard"
+        description: "Un fulgor celestial protege la capital, elevando su salud máxima por la voluntad de los dioses del panteón nórdico."
+        researchCost: 180
+        durationSeconds: 100
+        requirements: []
+        unlocks:
+          buffs:
+            - target: capital
+              attribute: health
+              multiplier: 1.20
+
+      # ── TIER 2 ─────────────────────────────────────────────────────────────
+      - id: valk_canto_de_sanacion
+        name: "Canto de Sanación"
+        description: "Las valkirias entonan himnos sagrados que aceleran la recuperación de las tropas heridas durante el combate."
+        researchCost: 300
+        durationSeconds: 180
+        requirements:
+          - valk_bendicion_divina
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: health
+              multiplier: 1.25
+
+      - id: valk_lanza_de_mimir
+        name: "Lanza de Mimir"
+        description: "Armas forjadas con la sabiduría del dios Mimir desatan a las Valkirias de asalto, una unidad única de apoyo ofensivo."
+        researchCost: 550
+        durationSeconds: 260
+        requirements:
+          - valk_bendicion_divina
+          - valk_luz_de_asgard
+        unlocks:
+          troops:
+            - id: valkirie_de_asalto
+              name: "Valkiria de Asalto"
+              type: SUPP
+              power: 28
+              trainingTimeSeconds: 65
+              cost: 110
+
+      - id: valk_escudo_de_tyr
+        name: "Escudo de Tyr"
+        description: "La protección del dios de la guerra refuerza las defensas de la capital ante cualquier ofensiva enemiga de gran escala."
+        researchCost: 400
+        durationSeconds: 200
+        requirements:
+          - valk_luz_de_asgard
+        unlocks:
+          buffs:
+            - target: capital
+              attribute: defense
+              multiplier: 1.18
+
+      # ── TIER 3 ─────────────────────────────────────────────────────────────
+      - id: valk_resurreccion_de_valhalla
+        name: "Resurrección de Valhalla"
+        description: "Las caídas en batalla son reclamadas por Valhalla y devueltas al campo, aumentando drásticamente la regeneración de las tropas."
+        researchCost: 850
+        durationSeconds: 480
+        requirements:
+          - valk_canto_de_sanacion
+          - valk_escudo_de_tyr
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: health
+              multiplier: 1.35
+
+      - id: valk_juicio_divino
+        name: "Juicio Divino"
+        description: "El favor de Odín recae sobre las guerreras, dotándolas de un poder ofensivo reservado únicamente a los elegidos de los dioses."
+        researchCost: 1100
+        durationSeconds: 650
+        requirements:
+          - valk_lanza_de_mimir
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: attack
+              multiplier: 1.20
+
+      - id: valk_serafin_de_batalla
+        name: "Serafín de Batalla"
+        description: "La encarnación del poder divino en forma de guerrera, capaz de sanar aliados y devastar enemigos de manera simultánea."
+        researchCost: 1400
+        durationSeconds: 850
+        requirements:
+          - valk_resurreccion_de_valhalla
+          - valk_juicio_divino
+        unlocks:
+          troops:
+            - id: serafin_de_batalla
+              name: "Serafín de Batalla"
+              type: HEAL
+              power: 65
+              trainingTimeSeconds: 160
+              cost: 300
+
+
+  # ===========================================================================
+  # 3. JARLS — IRON
+  # ===========================================================================
+  - id: jarls
+    name: "Los Jarls de Hierro"
+    archetype: IRON
+    description: "Señores feudales forjados en las fraguas del norte, los Jarls construyen fortalezas impenetrables y tropas envueltas en acero. Su economía de guerra es absolutamente inigualable."
+    color: "#7F8C8D"
+    baseCapitalHealth: 2000
+    advantages:
+      - STORM
+      - DIVINE
+
+    initialTroops:
+      - id: escudero_de_hierro
+        name: "Escudero de Hierro"
+        type: DEF
+        power: 20
+        trainingTimeSeconds: 50
+        cost: 90
+
+      - id: lancero_del_muro
+        name: "Lancero del Muro"
+        type: DEF
+        power: 17
+        trainingTimeSeconds: 45
+        cost: 75
+
+    technologies:
+      # ── TIER 1 ─────────────────────────────────────────────────────────────
+      - id: jarl_forja_de_acero
+        name: "Forja de Acero"
+        description: "Las fraguas de los Jarls producen armaduras de mayor grosor, incrementando la defensa de todas las unidades del clan."
+        researchCost: 150
+        durationSeconds: 80
+        requirements: []
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: defense
+              multiplier: 1.20
+
+      - id: jarl_murallas_de_roca
+        name: "Murallas de Roca"
+        description: "Los ingenieros militares construyen muros reforzados que elevan enormemente la salud total de la capital."
+        researchCost: 200
+        durationSeconds: 120
+        requirements: []
+        unlocks:
+          buffs:
+            - target: capital
+              attribute: health
+              multiplier: 1.25
+
+      # ── TIER 2 ─────────────────────────────────────────────────────────────
+      - id: jarl_muro_de_escudos
+        name: "Formación Muro de Escudos"
+        description: "La táctica del muro de escudos reduce drásticamente el daño recibido por las tropas en primera línea de combate."
+        researchCost: 400
+        durationSeconds: 200
+        requirements:
+          - jarl_forja_de_acero
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: defense
+              multiplier: 1.25
+
+      - id: jarl_economia_de_guerra
+        name: "Economía de Guerra"
+        description: "Las redes comerciales de los Jarls generan más tributos, potenciando los recursos económicos del clan en el largo plazo."
+        researchCost: 350
+        durationSeconds: 180
+        requirements:
+          - jarl_forja_de_acero
+          - jarl_murallas_de_roca
+        unlocks:
+          buffs:
+            - target: economy
+              attribute: income
+              multiplier: 1.30
+
+      - id: jarl_guardia_del_senor
+        name: "Guardia del Señor"
+        description: "Una élite de guerreros pesados es entrenada para proteger al Jarl y las líneas defensivas del clan ante cualquier asalto."
+        researchCost: 600
+        durationSeconds: 280
+        requirements:
+          - jarl_murallas_de_roca
+        unlocks:
+          troops:
+            - id: guardia_del_senor
+              name: "Guardia del Señor"
+              type: DEF
+              power: 38
+              trainingTimeSeconds: 80
+              cost: 160
+
+      # ── TIER 3 ─────────────────────────────────────────────────────────────
+      - id: jarl_baluarte_eterno
+        name: "Baluarte Eterno"
+        description: "La capital se transforma en una fortaleza inexpugnable con estructuras capaces de resistir el asedio más brutal jamás visto."
+        researchCost: 900
+        durationSeconds: 500
+        requirements:
+          - jarl_muro_de_escudos
+          - jarl_economia_de_guerra
+        unlocks:
+          buffs:
+            - target: capital
+              attribute: health
+              multiplier: 1.40
+
+      - id: jarl_acero_runico
+        name: "Acero Rúnico"
+        description: "Runas antiguas son grabadas en cada pieza de armadura, concediendo resistencias sobrenaturales en el campo de batalla."
+        researchCost: 1100
+        durationSeconds: 620
+        requirements:
+          - jarl_guardia_del_senor
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: defense
+              multiplier: 1.35
+
+      - id: jarl_titan_de_hierro
+        name: "Titán de Hierro"
+        description: "El coloso viviente de los Jarls; una unidad blindada capaz de absorber cantidades masivas de daño y mantener el frente intacto."
+        researchCost: 1500
+        durationSeconds: 900
+        requirements:
+          - jarl_baluarte_eterno
+          - jarl_acero_runico
+        unlocks:
+          troops:
+            - id: titan_de_hierro
+              name: "Titán de Hierro"
+              type: DEF
+              power: 80
+              trainingTimeSeconds: 200
+              cost: 400
+
+
+  # ===========================================================================
+  # 4. SOMBRAS — SHADOW
+  # ===========================================================================
+  - id: sombras
+    name: "Las Sombras de Loki"
+    archetype: SHADOW
+    description: "Hijos del engaño y la astucia, las Sombras de Loki atacan desde la oscuridad antes de que el enemigo pueda reaccionar. Su velocidad y sigilo los hacen virtualmente indetectables en cualquier terreno."
+    color: "#2C3E50"
+    baseCapitalHealth: 1200
+    advantages:
+      - DIVINE
+      - IRON
+
+    initialTroops:
+      - id: asesino_veloz
+        name: "Asesino Veloz"
+        type: ATK
+        power: 18
+        trainingTimeSeconds: 35
+        cost: 65
+
+      - id: explorador_nocturno
+        name: "Explorador Nocturno"
+        type: SUPP
+        power: 12
+        trainingTimeSeconds: 28
+        cost: 50
+
+    technologies:
+      # ── TIER 1 ─────────────────────────────────────────────────────────────
+      - id: somb_arte_del_sigilo
+        name: "Arte del Sigilo"
+        description: "Los guerreros aprenden las técnicas ancestrales del movimiento silencioso, aumentando su velocidad de infiltración."
+        researchCost: 110
+        durationSeconds: 65
+        requirements: []
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: speed
+              multiplier: 1.25
+
+      - id: somb_veneno_de_serpiente
+        name: "Veneno de Serpiente"
+        description: "Las armas son bañadas en extractos letales de la Serpiente de Midgard, potenciando el daño de cada ataque certero."
+        researchCost: 160
+        durationSeconds: 95
+        requirements: []
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: attack
+              multiplier: 1.15
+
+      # ── TIER 2 ─────────────────────────────────────────────────────────────
+      - id: somb_paso_de_sombra
+        name: "Paso de Sombra"
+        description: "Una técnica avanzada que permite a las unidades moverse sin dejar rastro, reduciendo el tiempo de despliegue en el campo."
+        researchCost: 320
+        durationSeconds: 190
+        requirements:
+          - somb_arte_del_sigilo
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: speed
+              multiplier: 1.30
+
+      - id: somb_infiltrador_del_vacio
+        name: "Infiltrador del Vacío"
+        description: "Una nueva clase de guerrero surge de la oscuridad absoluta, capaz de penetrar líneas enemigas sin ser jamás detectado."
+        researchCost: 480
+        durationSeconds: 250
+        requirements:
+          - somb_arte_del_sigilo
+          - somb_veneno_de_serpiente
+        unlocks:
+          troops:
+            - id: infiltrador_del_vacio
+              name: "Infiltrador del Vacío"
+              type: ATK
+              power: 30
+              trainingTimeSeconds: 60
+              cost: 115
+
+      - id: somb_danza_de_cuchillas
+        name: "Danza de Cuchillas"
+        description: "Los asesinos perfeccionan la técnica de ataque múltiple, incrementando el daño causado en cada emboscada bien ejecutada."
+        researchCost: 450
+        durationSeconds: 220
+        requirements:
+          - somb_veneno_de_serpiente
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: attack
+              multiplier: 1.22
+
+      # ── TIER 3 ─────────────────────────────────────────────────────────────
+      - id: somb_manto_de_loki
+        name: "Manto de Loki"
+        description: "El favor del dios del engaño envuelve a las tropas en un velo de ilusión perfecta que desorienta fatalmente a los atacantes."
+        researchCost: 880
+        durationSeconds: 460
+        requirements:
+          - somb_paso_de_sombra
+          - somb_danza_de_cuchillas
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: speed
+              multiplier: 1.35
+
+      - id: somb_red_de_espias
+        name: "Red de Espías"
+        description: "Una vasta red de informantes incrementa los ingresos del clan al interceptar rutas comerciales y recursos del enemigo."
+        researchCost: 1050
+        durationSeconds: 580
+        requirements:
+          - somb_infiltrador_del_vacio
+        unlocks:
+          buffs:
+            - target: economy
+              attribute: income
+              multiplier: 1.25
+
+      - id: somb_fantasma_de_midgard
+        name: "Fantasma de Midgard"
+        description: "El asesino supremo, un ser que parece surgir de la nada y desvanecerse antes de que el enemigo pueda reaccionar o contraatacar."
+        researchCost: 1400
+        durationSeconds: 820
+        requirements:
+          - somb_manto_de_loki
+          - somb_red_de_espias
+        unlocks:
+          troops:
+            - id: fantasma_de_midgard
+              name: "Fantasma de Midgard"
+              type: ATK
+              power: 70
+              trainingTimeSeconds: 150
+              cost: 310
+
+
+  # ===========================================================================
+  # 5. FROST GUARD — FROST
+  # ===========================================================================
+  - id: frost_guard
+    name: "Guardianes del Eterno Hielo"
+    archetype: FROST
+    description: "Nacidos en las tundras del extremo norte, los Guardianes del Hielo dominan el arte del control del campo de batalla. Sus enemigos se mueven como insectos atrapados en ámbar glacial."
+    color: "#5DADE2"
+    baseCapitalHealth: 1700
+    advantages:
+      - FURY
+      - STORM
+
+    initialTroops:
+      - id: lancero_de_hielo
+        name: "Lancero de Hielo"
+        type: ATK
+        power: 16
+        trainingTimeSeconds: 42
+        cost: 72
+
+      - id: escudo_glaciar
+        name: "Escudo Glaciar"
+        type: DEF
+        power: 22
+        trainingTimeSeconds: 55
+        cost: 95
+
+    technologies:
+      # ── TIER 1 ─────────────────────────────────────────────────────────────
+      - id: frost_aliento_de_niflheim
+        name: "Aliento de Niflheim"
+        description: "El viento helado del reino de los muertos ralentiza a los enemigos, reduciendo su capacidad de maniobra y ataque."
+        researchCost: 130
+        durationSeconds: 75
+        requirements: []
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: defense
+              multiplier: 1.15
+
+      - id: frost_armadura_de_permafrost
+        name: "Armadura de Permafrost"
+        description: "Capas de hielo eterno son fundidas en las armaduras de los guerreros, aumentando su resistencia sobrenatural al impacto."
+        researchCost: 180
+        durationSeconds: 110
+        requirements: []
+        unlocks:
+          buffs:
+            - target: capital
+              attribute: health
+              multiplier: 1.20
+
+      # ── TIER 2 ─────────────────────────────────────────────────────────────
+      - id: frost_tormenta_de_granizo
+        name: "Tormenta de Granizo"
+        description: "Los chamanes invocan una lluvia de granizo sobrenatural que ralentiza y desorganiza las formaciones enemigas en combate."
+        researchCost: 380
+        durationSeconds: 210
+        requirements:
+          - frost_aliento_de_niflheim
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: defense
+              multiplier: 1.20
+
+      - id: frost_guardian_de_hielo
+        name: "Guardián de Hielo"
+        description: "Los rituales de invierno eterno dan vida a un guardián congelado, una unidad de defensa de resistencia extraordinaria."
+        researchCost: 520
+        durationSeconds: 270
+        requirements:
+          - frost_aliento_de_niflheim
+          - frost_armadura_de_permafrost
+        unlocks:
+          troops:
+            - id: guardian_de_hielo
+              name: "Guardián de Hielo"
+              type: DEF
+              power: 36
+              trainingTimeSeconds: 75
+              cost: 145
+
+      - id: frost_cadenas_del_invierno
+        name: "Cadenas del Invierno"
+        description: "Esposas de hielo mágico encadenan a las tropas enemigas, dejándolas inmóviles en instantes cruciales del combate."
+        researchCost: 450
+        durationSeconds: 230
+        requirements:
+          - frost_armadura_de_permafrost
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: speed
+              multiplier: 1.15
+
+      # ── TIER 3 ─────────────────────────────────────────────────────────────
+      - id: frost_corazon_del_invierno
+        name: "Corazón del Invierno"
+        description: "El espíritu del invierno eterno habita la capital, aumentando su salud máxima y reduciendo el daño recibido en cada asalto."
+        researchCost: 950
+        durationSeconds: 520
+        requirements:
+          - frost_tormenta_de_granizo
+          - frost_cadenas_del_invierno
+        unlocks:
+          buffs:
+            - target: capital
+              attribute: health
+              multiplier: 1.40
+
+      - id: frost_avalancha_imparable
+        name: "Avalancha Imparable"
+        description: "Una fuerza glacial arrolladora potencia los ataques de las tropas, enviando una ola de destrucción helada al frente enemigo."
+        researchCost: 1100
+        durationSeconds: 640
+        requirements:
+          - frost_guardian_de_hielo
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: attack
+              multiplier: 1.25
+
+      - id: frost_coloso_de_hielo
+        name: "Coloso de Hielo"
+        description: "Un titán congelado formado por las energías primigenias de Niflheim, cuya sola presencia paraliza de terror a los enemigos."
+        researchCost: 1450
+        durationSeconds: 880
+        requirements:
+          - frost_corazon_del_invierno
+          - frost_avalancha_imparable
+        unlocks:
+          troops:
+            - id: coloso_de_hielo
+              name: "Coloso de Hielo"
+              type: DEF
+              power: 78
+              trainingTimeSeconds: 190
+              cost: 380
+
+
+  # ===========================================================================
+  # 6. STORM BRINGERS — STORM
+  # ===========================================================================
+  - id: storm_bringers
+    name: "Los Portadores de la Tormenta"
+    archetype: STORM
+    description: "Adoradores de Thor y el poder de los cielos, los Portadores de la Tormenta desatan el caos eléctrico sobre sus enemigos. Sus ataques de área barren ejércitos enteros antes de que puedan organizarse."
+    color: "#F39C12"
+    baseCapitalHealth: 1300
+    advantages:
+      - SHADOW
+      - FROST
+
+    initialTroops:
+      - id: jinete_del_rayo
+        name: "Jinete del Rayo"
+        type: ATK
+        power: 20
+        trainingTimeSeconds: 38
+        cost: 75
+
+      - id: arquero_de_tormenta
+        name: "Arquero de Tormenta"
+        type: ATK
+        power: 17
+        trainingTimeSeconds: 32
+        cost: 60
+
+    technologies:
+      # ── TIER 1 ─────────────────────────────────────────────────────────────
+      - id: storm_llamada_del_trueno
+        name: "Llamada del Trueno"
+        description: "El rugido de Thor resuena en el campo de batalla, aumentando el ataque de todas las tropas del clan de manera inmediata."
+        researchCost: 140
+        durationSeconds: 80
+        requirements: []
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: attack
+              multiplier: 1.15
+
+      - id: storm_vientos_del_norte
+        name: "Vientos del Norte"
+        description: "Corrientes de aire tempestuosas elevan la velocidad de movimiento de las tropas en cualquier terreno del mapa."
+        researchCost: 170
+        durationSeconds: 100
+        requirements: []
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: speed
+              multiplier: 1.20
+
+      # ── TIER 2 ─────────────────────────────────────────────────────────────
+      - id: storm_rayo_de_mjolnir
+        name: "Rayo de Mjolnir"
+        description: "El poder del martillo sagrado es canalizado en los ataques del clan, añadiendo un daño de área eléctrica absolutamente devastador."
+        researchCost: 420
+        durationSeconds: 210
+        requirements:
+          - storm_llamada_del_trueno
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: attack
+              multiplier: 1.25
+
+      - id: storm_heraldo_de_la_tormenta
+        name: "Heraldo de la Tormenta"
+        description: "Guerreros élite canalizadores de energía relámpago surgen entre las filas del clan para liderar el asalto eléctrico."
+        researchCost: 560
+        durationSeconds: 265
+        requirements:
+          - storm_llamada_del_trueno
+          - storm_vientos_del_norte
+        unlocks:
+          troops:
+            - id: heraldo_de_la_tormenta
+              name: "Heraldo de la Tormenta"
+              type: ATK
+              power: 33
+              trainingTimeSeconds: 68
+              cost: 125
+
+      - id: storm_ojos_del_aguila
+        name: "Ojos del Águila"
+        description: "Los arqueros del clan reciben entrenamiento avanzado bajo la guía de Huginn, mejorando puntería y cadencia de disparo."
+        researchCost: 390
+        durationSeconds: 195
+        requirements:
+          - storm_vientos_del_norte
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: attack
+              multiplier: 1.18
+
+      # ── TIER 3 ─────────────────────────────────────────────────────────────
+      - id: storm_furia_celestial
+        name: "Furia Celestial"
+        description: "Una tormenta eterna envuelve la capital, castigando con rayos a cualquier enemigo que se atreva a acercarse a sus muros."
+        researchCost: 920
+        durationSeconds: 490
+        requirements:
+          - storm_rayo_de_mjolnir
+          - storm_ojos_del_aguila
+        unlocks:
+          buffs:
+            - target: capital
+              attribute: attack
+              multiplier: 1.30
+
+      - id: storm_ojo_del_huracan
+        name: "Ojo del Huracán"
+        description: "Las tropas que se mueven dentro del caos de la tormenta alcanzan velocidades sobrehumanas imposibles de igualar."
+        researchCost: 1080
+        durationSeconds: 610
+        requirements:
+          - storm_heraldo_de_la_tormenta
+        unlocks:
+          buffs:
+            - target: troops
+              attribute: speed
+              multiplier: 1.35
+
+      - id: storm_avatar_de_thor
+        name: "Avatar de Thor"
+        description: "La encarnación del dios del trueno en forma humana; una unidad capaz de devastar ejércitos enteros con ataques eléctricos masivos."
+        researchCost: 1500
+        durationSeconds: 900
+        requirements:
+          - storm_furia_celestial
+          - storm_ojo_del_huracan
+        unlocks:
+          troops:
+            - id: avatar_de_thor
+              name: "Avatar de Thor"
+              type: ATK
+              power: 85
+              trainingTimeSeconds: 200
+              cost: 420

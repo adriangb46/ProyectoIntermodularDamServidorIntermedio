@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { GameEvent } from '../../models/game-event.js';
+import { checkVictory } from './victory-checker.js';
 
 /**
  * Motor de tiempo centralizado del Middle Server.
@@ -16,7 +17,7 @@ import { GameEvent } from '../../models/game-event.js';
  *   PHASE_TRANSITION_WAR       → Preparación → Guerra (implementado)
  *   RESOURCE_TICK              → Distribución de créditos económicos (TODO: Dev B)
  *   TROOP_TRAINING_COMPLETE    → Tropa añadida al capital (TODO: Dev B)
- *   TROOP_ARRIVAL              → Resolución de combate (TODO: Sprint 3 combat-resolver)
+ *   TROOP_ARRIVAL              → Resolución de combate + comprobación de victoria (Sprint 3 + Sprint 4)
  *   DB_DUMP_POSTGRES           → Volcado a PostgreSQL (TODO: Dev B DB connector)
  *   DB_DUMP_MONGODB            → Volcado a MongoDB (TODO: Dev B DB connector)
  */
@@ -144,6 +145,10 @@ export class TimeWheel {
         console.log(`[TimeWheel] RESOURCE_TICK pendiente de implementación (partida ${game.id}).`);
         break;
 
+      case 'RESEARCH_COMPLETE':
+        this._handleResearchComplete(game, event.payload);
+        break;
+
       case 'TROOP_TRAINING_COMPLETE':
         // TODO (Dev B): Añadir la tropa completada al capital del jugador.
         // event.payload = { characterId, troopTypeId }
@@ -154,6 +159,9 @@ export class TimeWheel {
         // TODO (Sprint 3): Invocar combat-resolver con los datos del ataque.
         // event.payload = { troopId, attackerCharacterId, targetCharacterId }
         console.log(`[TimeWheel] TROOP_ARRIVAL pendiente de combat-resolver (partida ${game.id}).`);
+        // Sprint 4: Comprobar condición de victoria tras resolver el combate.
+        // Cuando combat-resolver esté implementado, mover esta llamada a _handleTroopArrival().
+        checkVictory(game, this.io);
         break;
 
       case 'DB_DUMP_POSTGRES':
@@ -207,6 +215,38 @@ export class TimeWheel {
       type: 'RESOURCE_TICK',
       executeAt: Date.now() + firstResourceTickDelay,
     }));
+  }
+
+  /**
+   * Finaliza una investigación tecnológica.
+   * Actualiza el estado del jugador y notifica al cliente.
+   * 
+   * @param {import('../../models/game').Game} game 
+   * @param {Object} payload - { characterId, researchId }
+   */
+  _handleResearchComplete(game, payload) {
+    const { characterId, researchId } = payload;
+    const player = game.getPlayer(characterId);
+
+    if (!player || player.eliminated) return;
+
+    // Verificar que la investigación coincide (idempotencia)
+    if (player.researchInProgress?.researchId !== researchId) {
+      return;
+    }
+
+    // Desbloquear
+    player.unlockedResearches.push(researchId);
+    player.researchInProgress = null;
+
+    console.log(`[TimeWheel] Investigación completada: ${researchId} para ${characterId}`);
+
+    // Notificar al jugador
+    this.io.to(`game_${game.id}`).emit('player:research-complete', {
+      characterId,
+      researchId,
+      unlockedResearches: player.unlockedResearches
+    });
   }
 
   // ---------------------------------------------------------------------------

@@ -8,6 +8,7 @@ import { socketAuthMiddleware } from './src/middleware/auth.js';
 import { initSocketHandler } from './src/connectors/socket-handler.js';
 import { TimeWheel } from './src/game/engine/time-wheel.js';
 import { gameStore } from './src/game/state/game-store.js';
+import { gameData } from './src/config/game-data-loader.js';
 import { dbConnector } from './src/connectors/db-connector.js';
 import { syncManager } from './src/game/state/sync-manager.js';
 
