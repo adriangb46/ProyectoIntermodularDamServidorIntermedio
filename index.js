@@ -9,6 +9,7 @@ import { initSocketHandler } from './src/connectors/socket-handler.js';
 import { TimeWheel } from './src/game/engine/time-wheel.js';
 import { gameStore } from './src/game/state/game-store.js';
 import { dbConnector } from './src/connectors/db-connector.js';
+import { syncManager } from './src/game/state/sync-manager.js';
 
 // 1. Inicialización de Express (Servidor HTTP)
 const app = express();
@@ -51,9 +52,15 @@ async function startServer() {
     console.log('🔄 Iniciando handshake con DB Server...');
     await dbConnector.performHandshake();
 
+    // Sincronización Inicial de Partidas
+    await syncManager.loadActiveGames();
+
     // IMPORTANTE: se inicializa después de io para poder pasarle la referencia
     const timeWheel = new TimeWheel(gameStore, io, config);
     timeWheel.start();
+
+    // Arrancar volcado periódico a base de datos
+    syncManager.startPeriodicSync(config.postgresDumpIntervalMs);
 
     // Arrancar el servidor HTTP
     httpServer.listen(config.port, () => {
