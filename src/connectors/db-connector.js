@@ -115,8 +115,15 @@ class DbConnector {
   }
 
   async getUserByUsername(username) {
-    return this.fetchWithAuth(`/internal/users/username/${encodeURIComponent(username)}`, {
+    return this.fetchWithAuth(`/internal/users/by-username/${encodeURIComponent(username)}`, {
       method: 'GET',
+    });
+  }
+
+  async verifyCredentials(username, password) {
+    return this.fetchWithAuth('/internal/auth/verify', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
     });
   }
 
@@ -150,8 +157,8 @@ class DbConnector {
 
   async dumpState(id, stateDto) {
     return this.fetchWithAuth(`/internal/games/${id}/dump`, {
-      method: 'POST',
-      body: JSON.stringify(stateDto),
+      method: 'PUT',
+      body: JSON.stringify({ stateJson: JSON.stringify(stateDto) }),
     });
   }
 

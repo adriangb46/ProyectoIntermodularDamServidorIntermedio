@@ -1,7 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config/index.js';
-// Importaremos el dbConnector cuando Dev B lo implemente
-// import { dbConnector } from '../connectors/db-connector.js';
+import { dbConnector } from '../connectors/db-connector.js';
 
 /**
  * Controlador de Login (HTTP REST) — "La Taquilla"
@@ -20,18 +19,19 @@ export const loginController = async (req, res, next) => {
     }
 
     // 1. Llamada REST al DB Server (Spring Boot)
-    // Cuando Dev B lo implemente, esto será:
-    // const dbResponse = await dbConnector.verifyCredentials(username, password);
-
-    // -- TODO: Eliminar este mock cuando el dbConnector esté listo --
-    console.log(`[Taquilla] Verificando credenciales en DB Server para: ${username}`);
-    const isMockValid = username === 'admin' && password === '1234'; // MOCK
-    if (!isMockValid) {
-      // Regla de seguridad: mensaje genérico para no revelar qué campo falla
+    let dbResponse;
+    try {
+      // Retorna ApiResponse<UserResponseDto>, dbConnector.fetchWithAuth ya hace el unwrap parcial o podemos asumir que dbConnector devuelve el objeto parseado.
+      // fetchWithAuth devuelve el JSON completo. Si el DB Server envuelve en { data: ... }, lo extraemos.
+      const rawResponse = await dbConnector.verifyCredentials(username, password);
+      dbResponse = rawResponse?.data || rawResponse;
+    } catch (err) {
+      console.warn(`[Taquilla] Login fallido: Credenciales denegadas para ${username}.`);
       return res.status(401).json({ message: "Usuario o contraseña inválidos" });
     }
-    const dbResponse = { username, role: 'USER' }; // MOCK — Dev B aportará el rol real
-    // ---------------------------------------------------------------
+
+    // Asegurarse de tener el rol, si el backend aún no lo expone lo forzamos a 'USER' temporalmente
+    const role = dbResponse.role || 'USER';
 
     // 2. Fabricar el JWT siguiendo el estándar RFC 7519
     // El token identifica al usuario (sub) y su rol. Los personajes/clanes
@@ -44,6 +44,8 @@ export const loginController = async (req, res, next) => {
       config.jwtSecret,
       { expiresIn: '2h' } // Duración corta por seguridad
     );
+
+    console.log(`[Taquilla] Login exitoso: ${username} autenticado. Emisión de JWT completada.`);
 
     // 3. Devolver el token al frontend
     return res.status(200).json({ token });
@@ -68,17 +70,20 @@ export const registerController = async (req, res, next) => {
     }
 
     // 1. Llamada REST al DB Server (Spring Boot)
-    // Cuando Dev B lo implemente, esto será:
-    // const dbResponse = await dbConnector.registerUser(username, email, password);
-
-    // -- TODO: Eliminar este mock cuando el dbConnector esté listo --
-    console.log(`[Taquilla] Registrando nuevo usuario en DB Server: ${username} (${email})`);
-    const isMockValid = username.length > 2 && password.length > 3; // MOCK
-    if (!isMockValid) {
+    let dbResponse;
+    try {
+      const rawResponse = await dbConnector.createUser({ username, email, password });
+      dbResponse = rawResponse?.data || rawResponse;
+    } catch (err) {
+      console.warn(`[Taquilla] Registro fallido para ${username}: ${err.message}`);
+      // Si es un 409 Conflict o similar
+      if (err.status === 409) {
+        return res.status(409).json({ message: err.message });
+      }
       return res.status(400).json({ message: "Datos de registro inválidos" });
     }
-    const dbResponse = { username, role: 'USER' }; // MOCK
-    // ---------------------------------------------------------------
+
+    const role = dbResponse.role || 'USER';
 
     // 2. Fabricar el JWT
     const token = jwt.sign(
@@ -89,6 +94,8 @@ export const registerController = async (req, res, next) => {
       config.jwtSecret,
       { expiresIn: '2h' }
     );
+
+    console.log(`[Taquilla] Registro exitoso: ${username} creado. Emisión de JWT completada.`);
 
     // 3. Devolver el token al frontend
     return res.status(201).json({ token });

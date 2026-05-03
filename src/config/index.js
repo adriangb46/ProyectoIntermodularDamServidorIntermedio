@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 
 // Cargamos el .env de la raíz del proyecto (un nivel por encima de middle_server)
 // Nota: en Docker/Producción esto se puede ignorar si las variables ya están en el entorno
-dotenv.config({ path: '../.env' });
+dotenv.config({ path: '../../.env' });
 
 /**
  * Objeto de configuración centralizado e inmutable.
