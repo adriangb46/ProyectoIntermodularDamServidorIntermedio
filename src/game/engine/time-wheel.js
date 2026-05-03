@@ -144,6 +144,10 @@ export class TimeWheel {
         console.log(`[TimeWheel] RESOURCE_TICK pendiente de implementación (partida ${game.id}).`);
         break;
 
+      case 'RESEARCH_COMPLETE':
+        this._handleResearchComplete(game, event.payload);
+        break;
+
       case 'TROOP_TRAINING_COMPLETE':
         // TODO (Dev B): Añadir la tropa completada al capital del jugador.
         // event.payload = { characterId, troopTypeId }
@@ -207,6 +211,38 @@ export class TimeWheel {
       type: 'RESOURCE_TICK',
       executeAt: Date.now() + firstResourceTickDelay,
     }));
+  }
+
+  /**
+   * Finaliza una investigación tecnológica.
+   * Actualiza el estado del jugador y notifica al cliente.
+   * 
+   * @param {import('../../models/game').Game} game 
+   * @param {Object} payload - { characterId, researchId }
+   */
+  _handleResearchComplete(game, payload) {
+    const { characterId, researchId } = payload;
+    const player = game.getPlayer(characterId);
+
+    if (!player || player.eliminated) return;
+
+    // Verificar que la investigación coincide (idempotencia)
+    if (player.researchInProgress?.researchId !== researchId) {
+      return;
+    }
+
+    // Desbloquear
+    player.unlockedResearches.push(researchId);
+    player.researchInProgress = null;
+
+    console.log(`[TimeWheel] Investigación completada: ${researchId} para ${characterId}`);
+
+    // Notificar al jugador
+    this.io.to(`game_${game.id}`).emit('player:research-complete', {
+      characterId,
+      researchId,
+      unlockedResearches: player.unlockedResearches
+    });
   }
 
   // ---------------------------------------------------------------------------
