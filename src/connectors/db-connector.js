@@ -152,7 +152,28 @@ class DbConnector {
     });
   }
 
+  // --- Endpoints de Personajes ---
+
+  async getCharactersByUser(userId) {
+    return this.fetchWithAuth(`/internal/characters/by-user/${userId}`, {
+      method: 'GET',
+    });
+  }
+
+  async createCharacter(dto) {
+    return this.fetchWithAuth('/internal/characters', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  }
+
   // --- Endpoints de Partidas ---
+
+  async getGamesByUser(userId) {
+    return this.fetchWithAuth(`/internal/games/by-user/${userId}`, {
+      method: 'GET',
+    });
+  }
 
   async createGame(dto) {
     return this.fetchWithAuth('/internal/games', {

@@ -40,6 +40,7 @@ export const loginController = async (req, res, next) => {
     const token = jwt.sign(
       {
         sub: dbResponse.username, // Sujeto estándar JWT — nombre de usuario
+        userId: dbResponse.id,    // ID del usuario en la base de datos (UUID)
         role: dbResponse.role,    // Rol del usuario (USER | ADMIN)
         jti: crypto.randomUUID()  // Identificador único de JWT (security.md §2)
       },
@@ -91,6 +92,7 @@ export const registerController = async (req, res, next) => {
     const token = jwt.sign(
       {
         sub: dbResponse.username,
+        userId: dbResponse.id,
         role: dbResponse.role,
         jti: crypto.randomUUID()
       },
