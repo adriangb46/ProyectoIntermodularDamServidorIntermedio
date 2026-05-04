@@ -22,7 +22,7 @@ for (const envPath of envPaths) {
  */
 export const config = Object.freeze({
   port: Number(process.env.PORT) || 3000,
-  jwtSecret: process.env.JWT_SECRET,
+  jwtSecret: process.env.JWT_SECRET || process.env.MIDDLE_JWT_SECRET,
   dbServerUrl: process.env.DB_SERVER_URL,
   dbHandshakeToken: process.env.DB_HANDSHAKE_SECRET || process.env.DB_HANDSHAKE_TOKEN,
 
@@ -44,4 +44,12 @@ if (!config.dbServerUrl) missingKeys.push('DB_SERVER_URL');
 if (missingKeys.length > 0) {
   console.warn(`⚠️ CONFIGURACIÓN INCOMPLETA: Faltan las siguientes variables: ${missingKeys.join(', ')}`);
   console.log('💡 Tip: Asegúrate de que el archivo .env existe en la raíz del proyecto o las variables están seteadas.');
+  console.log('--- Diagnóstico de Entorno ---');
+  console.log(`CWD: ${process.cwd()}`);
+  console.log(`__dirname: ${__dirname}`);
+  console.log(`JWT_SECRET presente: ${!!process.env.JWT_SECRET}`);
+  console.log(`MIDDLE_JWT_SECRET presente: ${!!process.env.MIDDLE_JWT_SECRET}`);
+  console.log(`DB_HANDSHAKE_SECRET presente: ${!!process.env.DB_HANDSHAKE_SECRET}`);
+  console.log(`DB_HANDSHAKE_TOKEN presente: ${!!process.env.DB_HANDSHAKE_TOKEN}`);
+  console.log('------------------------------');
 }
