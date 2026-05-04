@@ -33,10 +33,8 @@ function createRateLimiter({ prefix, windowMs, max, message }) {
       },
       prefix: `rl:${prefix}:`,
     }),
-    // Identificador: IP del cliente (compatible con proxies si se configura trust proxy)
-    keyGenerator: (req) => {
-      return req.ip || req.socket.remoteAddress;
-    },
+    // Identificador: IP del cliente (default: req.ip)
+    // El default es seguro para IPv6 y compatible con proxies si se configura trust proxy
   });
 }
 
