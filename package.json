@@ -17,7 +17,8 @@
   "scripts": {
     "test": "npm run test",
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "verify-clans": "node scripts/verify-clans-sync.js"
   },
   "devDependencies": {
     "@compodoc/compodoc": "^1.2.1",
