@@ -32,7 +32,8 @@ export const socketAuthMiddleware = async (socket, next) => {
 
     // 5. Inyectar los datos del usuario en el socket.
     socket.user = {
-      username: decoded.sub,  // Nombre de usuario (campo estándar JWT)
+      userId: decoded.sub,    // UUID del usuario
+      username: decoded.username, // Nombre de usuario
       role: decoded.role,     // Rol del usuario (USER | ADMIN)
       jti: decoded.jti        // ID único del token
     };
@@ -71,7 +72,8 @@ export const httpAuthMiddleware = async (req, res, next) => {
 
     // Inyectar usuario en la request
     req.user = {
-      username: decoded.sub,
+      userId: decoded.sub,
+      username: decoded.username,
       role: decoded.role,
       jti: decoded.jti,
       exp: decoded.exp

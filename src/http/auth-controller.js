@@ -39,8 +39,8 @@ export const loginController = async (req, res, next) => {
     // se gestionan como estado de juego, no como estado de sesión.
     const token = jwt.sign(
       {
-        sub: dbResponse.username, // Sujeto estándar JWT — nombre de usuario
-        userId: dbResponse.id,    // ID del usuario en la base de datos (UUID)
+        sub: dbResponse.id,       // UUID del usuario (Sujeto estándar JWT)
+        username: dbResponse.username, // Nombre de usuario para el Frontend
         role: dbResponse.role,    // Rol del usuario (USER | ADMIN)
         jti: crypto.randomUUID()  // Identificador único de JWT (security.md §2)
       },
@@ -91,8 +91,8 @@ export const registerController = async (req, res, next) => {
     // 2. Fabricar el JWT
     const token = jwt.sign(
       {
-        sub: dbResponse.username,
-        userId: dbResponse.id,
+        sub: dbResponse.id,
+        username: dbResponse.username,
         role: dbResponse.role,
         jti: crypto.randomUUID()
       },

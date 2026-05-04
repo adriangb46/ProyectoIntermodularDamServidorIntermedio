@@ -62,20 +62,9 @@ export const avatarUploadController = async (req, res, next) => {
     // 6. Subir a MinIO
     const avatarUrl = await minioConnector.uploadAvatar(processedBuffer, avatarUuid);
 
-    // 7. Obtener el ID del usuario desde el DB Server para persistir la URL
-    //    El JWT contiene 'sub' (username), necesitamos el UUID del usuario
-    let userResponse;
+    // 7. Persistir la URL del avatar en PostgreSQL via DB Server
     try {
-      const rawResponse = await dbConnector.getUserByUsername(req.user.username);
-      userResponse = rawResponse?.data || rawResponse;
-    } catch (err) {
-      console.error(`[Avatar] Error al obtener usuario ${req.user.username}: ${err.message}`);
-      return res.status(500).json({ message: 'Error al procesar la solicitud de avatar' });
-    }
-
-    // 8. Persistir la URL del avatar en PostgreSQL via DB Server
-    try {
-      await dbConnector.updateAvatar(userResponse.id, avatarUrl);
+      await dbConnector.updateAvatar(req.user.userId, avatarUrl);
     } catch (err) {
       console.error(`[Avatar] Error al persistir URL de avatar para ${req.user.username}: ${err.message}`);
       return res.status(500).json({ message: 'Error al guardar el avatar' });

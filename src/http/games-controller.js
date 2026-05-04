@@ -54,7 +54,7 @@ export const getMyGamesController = async (req, res, next) => {
  */
 export const createGameController = async (req, res, next) => {
   try {
-    const { userId, sub: username } = req.user;
+    const { userId, username } = req.user;
     const { clanId } = req.body; // ej: 'FURY'
 
     if (!clanId) {
