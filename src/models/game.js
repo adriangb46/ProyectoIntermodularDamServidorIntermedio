@@ -1,3 +1,5 @@
+import { config } from '../config/index.js';
+
 /**
  * Representa una partida completa en el Middle Server.
  * Actúa como el contenedor principal del estado de juego y la cola de eventos asociados.
@@ -52,6 +54,12 @@ export class Game {
     this.phase = newPhase;
     if (newPhase === 'preparation' && !this.startedAt) {
       this.startedAt = Date.now();  // se guarda en memoria el momento de comienzo de la partida
+      
+      // Asignar recursos iniciales a todos los jugadores (100% del máximo)
+      for (const player of Object.values(this.players)) {
+        player.economicCredits = config.maxEconomicCredits;
+        player.researchCredits = config.maxResearchCredits;
+      }
     }
   }
 

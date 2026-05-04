@@ -33,21 +33,6 @@ export const config = Object.freeze({
 
   // --- Configuración de Redis ---
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
-
-  // --- Configuración de MinIO (Avatares) ---
-  minioEndpoint: process.env.MINIO_ENDPOINT || 'http://localhost:9000',
-  minioAccessKey: process.env.MINIO_ACCESS_KEY,
-  minioSecretKey: process.env.MINIO_SECRET_KEY,
-  minioBucketAvatars: process.env.MINIO_BUCKET_AVATARS || 'avatars',
-  minioPublicBaseUrl: process.env.MINIO_PUBLIC_BASE_URL || 'http://localhost:9000/avatars',
-
-  // --- Configuración de Rate Limiting ---
-  rateLimitLoginMax: Number(process.env.RATE_LIMIT_LOGIN_MAX) || 20,
-  rateLimitLoginWindowMs: Number(process.env.RATE_LIMIT_LOGIN_WINDOW_MS) || 15 * 60 * 1000,
-  rateLimitRegisterMax: Number(process.env.RATE_LIMIT_REGISTER_MAX) || 10,
-  rateLimitRegisterWindowMs: Number(process.env.RATE_LIMIT_REGISTER_WINDOW_MS) || 60 * 60 * 1000,
-  rateLimitJoinGameMax: Number(process.env.RATE_LIMIT_JOIN_GAME_MAX) || 40,
-  rateLimitJoinGameWindowMs: Number(process.env.RATE_LIMIT_JOIN_GAME_WINDOW_MS) || 60 * 1000,
 });
 
 console.log('⚙️  Cargando configuración del sistema...');
@@ -60,7 +45,7 @@ if (!config.jwtSecret || !config.dbHandshakeToken || !config.dbServerUrl) {
   if (!config.jwtSecret) missing.push('JWT_SECRET');
   if (!config.dbHandshakeToken) missing.push('DB_HANDSHAKE_SECRET/TOKEN');
   if (!config.dbServerUrl) missing.push('DB_SERVER_URL');
-  
+
   console.error(`🛑 ERROR DE CONFIGURACIÓN: Faltan variables críticas: ${missing.join(', ')}`);
   console.error('El servidor no puede continuar sin estas variables.');
   // En producción, salimos. En desarrollo, podríamos dejarlo pasar pero aquí forzamos seguridad.
