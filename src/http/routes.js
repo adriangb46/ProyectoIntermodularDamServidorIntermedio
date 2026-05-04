@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { loginController, registerController, logoutController } from './auth-controller.js';
 import { avatarUploadController } from './avatar-controller.js';
-import { getClansController } from './clans-controller.js';
+import { getGameAvailabilityController } from './games-controller.js';
 import { httpAuthMiddleware } from '../middleware/auth.js';
 import { loginLimiter, registerLimiter } from '../middleware/rate-limiter.js';
 
@@ -21,7 +21,7 @@ const upload = multer({
 // Rutas públicas (con rate limiting — security.md §3)
 httpRouter.post('/login', loginLimiter, loginController);
 httpRouter.post('/register', registerLimiter, registerController);
-httpRouter.get('/clans', getClansController); // Ruta pública para datos de juego
+httpRouter.get('/games/:code/availability', getGameAvailabilityController);
 
 // Rutas protegidas
 httpRouter.post('/logout', httpAuthMiddleware, logoutController);
