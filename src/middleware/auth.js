@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config/index.js';
-import { redisConnector } from '../connectors/redis-connector.js';
+import { redisConnector } from '../db/redis-connector.js';
 
 /**
  * Middleware para validar el JWT en conexiones de Socket.IO.

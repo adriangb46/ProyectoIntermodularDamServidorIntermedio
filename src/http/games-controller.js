@@ -1,5 +1,5 @@
 import { gameStore } from '../game/state/game-store.js';
-import { dbConnector } from '../connectors/db-connector.js';
+import { dbConnector } from '../db/db-connector.js';
 import { syncManager } from '../game/state/sync-manager.js';
 
 /**

@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config/index.js';
-import { dbConnector } from '../connectors/db-connector.js';
+import { dbConnector } from '../db/db-connector.js';
 import crypto from 'crypto';
 
 /**
@@ -123,7 +123,7 @@ export const logoutController = async (req, res, next) => {
     const ttlSeconds = Math.max(exp - nowSeconds, 0);
 
     // Añadir a la lista negra en Redis
-    const { redisConnector } = await import('../connectors/redis-connector.js');
+    const { redisConnector } = await import('../db/redis-connector.js');
     await redisConnector.blacklist(jti, ttlSeconds);
 
     console.log(`[Taquilla] Logout exitoso para JTI: ${jti}. Token invalidado en Redis.`);

@@ -1,8 +1,8 @@
 import crypto from 'crypto';
 import sharp from 'sharp';
 import { fileTypeFromBuffer } from 'file-type';
-import { minioConnector } from '../connectors/minio-connector.js';
-import { dbConnector } from '../connectors/db-connector.js';
+import { minioConnector } from '../db/minio-connector.js';
+import { dbConnector } from '../db/db-connector.js';
 
 // Tipos MIME aceptados validados por magic bytes (security.md §9)
 const ALLOWED_MIME_TYPES = new Set([

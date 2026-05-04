@@ -1,6 +1,6 @@
 import rateLimit from 'express-rate-limit';
 import RedisStore from 'rate-limit-redis';
-import { redisConnector } from '../connectors/redis-connector.js';
+import { redisConnector } from '../db/redis-connector.js';
 import { config } from '../config/index.js';
 
 /**

@@ -1,4 +1,4 @@
-import { dbConnector } from '../../connectors/db-connector.js';
+import { dbConnector } from '../../db/db-connector.js';
 import { gameStore } from './game-store.js';
 import { Game } from '../../models/game.js';
 import { Player } from '../../models/player.js';

@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { redisConnector } from '../src/connectors/redis-connector.js';
+import { redisConnector } from '../src/db/redis-connector.js';
 import { config } from '../src/config/index.js';
 import crypto from 'crypto';
 

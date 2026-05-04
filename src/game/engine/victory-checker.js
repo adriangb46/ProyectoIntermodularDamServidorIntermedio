@@ -1,4 +1,4 @@
-import { dbConnector } from '../../connectors/db-connector.js';
+import { dbConnector } from '../../db/db-connector.js';
 
 /**
  * Módulo de detección de condiciones de fin de partida.

@@ -5,11 +5,11 @@ import { Server } from 'socket.io';
 import { config } from './src/config/index.js';
 import { httpRouter } from './src/http/routes.js';
 import { socketAuthMiddleware } from './src/middleware/auth.js';
-import { initSocketHandler } from './src/connectors/socket-handler.js';
+import { initSocketHandler } from './src/socket/socket-handler.js';
 import { TimeWheel } from './src/game/engine/time-wheel.js';
 import { gameStore } from './src/game/state/game-store.js';
 import { gameData } from './src/config/game-data-loader.js';
-import { dbConnector } from './src/connectors/db-connector.js';
+import { dbConnector } from './src/db/db-connector.js';
 import { syncManager } from './src/game/state/sync-manager.js';
 
 // 1. Inicialización de Express (Servidor HTTP)
@@ -22,6 +22,24 @@ app.use(cors({
   origin: '*', // TODO: Restringir al dominio del frontend en producción
   methods: ['GET', 'POST']
 }));
+
+// Logger de Diagnóstico en Producción (Sanitizado)
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    // Sanitizar body para logs (no imprimir contraseñas)
+    const sanitizedBody = req.body ? { ...req.body } : {};
+    if (sanitizedBody.password) sanitizedBody.password = '[REDACTED]';
+    if (sanitizedBody.secret) sanitizedBody.secret = '[REDACTED]';
+    
+    console.log(`[HTTP] ${req.method} ${req.originalUrl} - ${res.statusCode} [${duration}ms]`);
+    // Imprimir query y body solo si tienen contenido útil
+    if (Object.keys(req.query).length > 0) console.log(`       Query:`, req.query);
+    if (Object.keys(sanitizedBody).length > 0) console.log(`       Body:`, sanitizedBody);
+  });
+  next();
+});
 
 // Rutas HTTP
 app.use('/api', httpRouter);
