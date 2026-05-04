@@ -230,6 +230,72 @@ class SyncManager {
       }
     }, intervalMs);
   }
+
+  /**
+   * Inicia el volcado analítico periódico del estado de la memoria a la base de datos (MongoDB).
+   * @param {number} intervalMs - Intervalo en milisegundos entre volcados analíticos.
+   */
+  startPeriodicAnalyticsSync(intervalMs) {
+    console.log(`⏱️  Iniciando volcado analítico a MongoDB (cada ${intervalMs}ms)`);
+
+    setInterval(async () => {
+      const games = gameStore.getAll();
+      if (games.length === 0) return; // Nada que volcar
+
+      let dumpedCount = 0;
+      let errorsCount = 0;
+
+      for (const game of games) {
+        try {
+          const snapshotDto = this._mapGameToAnalyticsSnapshot(game);
+          await dbConnector.publishAnalyticsSnapshot(snapshotDto);
+          dumpedCount++;
+        } catch (error) {
+          console.error(`❌ Error al volcar analítica de la partida ${game.id}:`, error.message);
+          errorsCount++;
+        }
+      }
+
+      if (errorsCount > 0) {
+        console.warn(`⚠️ Volcado analítico finalizado con ${errorsCount} errores (Volcadas: ${dumpedCount}).`);
+      } else {
+        console.log(`💾 Volcado analítico exitoso: ${dumpedCount} instantáneas guardadas en MongoDB.`);
+      }
+    }, intervalMs);
+  }
+
+  /**
+   * Mapea una partida (Game) al formato AnalyticsSnapshotRequestDto para MongoDB.
+   * @param {Game} game 
+   * @returns {Object} DTO de la instantánea analítica.
+   * @private
+   */
+  _mapGameToAnalyticsSnapshot(game) {
+    const playersSnapshot = Object.values(game.players).map(player => ({
+      characterId: player.characterId,
+      clanId: player.clanId || 'unknown',
+      economicCredits: player.economicCredits,
+      researchCredits: player.researchCredits,
+      capitalHealth: player.capitalHealth,
+      troops: player.troops.map(troop => ({
+        troopId: troop.id,
+        typeId: troop.typeId,
+        currentPoints: troop.currentPoints,
+        deployed: troop.deployed
+      })),
+      unlockedResearches: player.unlockedResearches,
+      eliminated: player.eliminated
+    }));
+
+    return {
+      gameId: game.id,
+      snapshotAt: new Date().toISOString(),
+      phase: game.phase,
+      players: playersSnapshot,
+      // TODO: Implementar el historial de battleEvents una vez se implemente combat-resolver.js
+      battleEvents: []
+    };
+  }
 }
 
 export const syncManager = new SyncManager();

@@ -186,6 +186,13 @@ class DbConnector {
       body: JSON.stringify(dto),
     });
   }
+
+  async publishAnalyticsSnapshot(snapshotDto) {
+    return this.fetchWithAuth('/internal/analytics/snapshots', {
+      method: 'POST',
+      body: JSON.stringify(snapshotDto),
+    });
+  }
 }
 
 // Exportamos como singleton

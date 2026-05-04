@@ -62,6 +62,7 @@ async function startServer() {
 
     // Arrancar volcado periódico a base de datos
     syncManager.startPeriodicSync(config.postgresDumpIntervalMs);
+    syncManager.startPeriodicAnalyticsSync(config.mongoDbDumpIntervalMs);
 
     // Arrancar el servidor HTTP
     httpServer.listen(config.port, () => {
