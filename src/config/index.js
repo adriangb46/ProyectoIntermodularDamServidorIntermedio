@@ -33,6 +33,10 @@ export const config = Object.freeze({
 
   // --- Configuración de Redis ---
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+
+  // --- Economía del Juego ---
+  maxEconomicCredits: Number(process.env.MAX_ECONOMIC_CREDITS) || 1500,
+  maxResearchCredits: Number(process.env.MAX_RESEARCH_CREDITS) || 1500,
 });
 
 console.log('⚙️  Cargando configuración del sistema...');

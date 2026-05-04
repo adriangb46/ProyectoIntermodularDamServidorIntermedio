@@ -139,10 +139,7 @@ export class TimeWheel {
         break;
 
       case 'RESOURCE_TICK':
-        // TODO (Dev B): Implementar distribución de créditos económicos.
-        // Lógica: cada jugador activo recibe un % de sus créditos máximos.
-        // Tras distribuir, programar el siguiente RESOURCE_TICK con intervalo aleatorio 30-60s.
-        console.log(`[TimeWheel] RESOURCE_TICK pendiente de implementación (partida ${game.id}).`);
+        this._handleResourceTick(game, now);
         break;
 
       case 'RESEARCH_COMPLETE':
@@ -186,6 +183,57 @@ export class TimeWheel {
   // ---------------------------------------------------------------------------
   // Manejadores de evento concretos
   // ---------------------------------------------------------------------------
+
+  /**
+   * Distribuye créditos económicos a los jugadores según la fase actual.
+   * - Fase Guerra: 20% del máximo cada 30-60s.
+   * - Fase Veredicto (end): 15% del máximo cada 20s.
+   * 
+   * @param {import('../../models/game').Game} game
+   * @param {number} now
+   */
+  _handleResourceTick(game, now) {
+    if (game.phase !== 'war' && game.phase !== 'end') {
+      return; // No se otorgan recursos en otras fases
+    }
+
+    const maxCredits = this.config.maxEconomicCredits;
+    let percentage = 0;
+    let nextTickDelay = 0;
+
+    if (game.phase === 'war') {
+      percentage = 20;
+      nextTickDelay = this._randomBetween(30_000, 60_000);
+    } else if (game.phase === 'end') {
+      percentage = 15;
+      nextTickDelay = 20_000;
+    }
+
+    const creditsToAdd = Math.floor((maxCredits * percentage) / 100);
+
+    for (const player of Object.values(game.players)) {
+      if (!player.eliminated) {
+        player.economicCredits += creditsToAdd;
+        // Aplicar límite superior
+        if (player.economicCredits > maxCredits) {
+          player.economicCredits = maxCredits;
+        }
+      }
+    }
+
+    console.log(`[TimeWheel] RESOURCE_TICK ejecutado (partida ${game.id}, fase ${game.phase}). Siguiente en ${nextTickDelay}ms.`);
+
+    // Emitir volcado de estado a los clientes de la partida
+    this.io.to(`game_${game.id}`).emit('game:state-update', game.toJSON());
+
+    // Programar el siguiente tick
+    this.scheduleEvent(game.id, new GameEvent({
+      id: randomUUID(),
+      gameId: game.id,
+      type: 'RESOURCE_TICK',
+      executeAt: now + nextTickDelay,
+    }));
+  }
 
   /**
    * Gestiona la transición de la fase Preparación → Guerra.
