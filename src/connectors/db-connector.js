@@ -19,7 +19,7 @@ class DbConnector {
    */
   async performHandshake(maxRetries = 10, initialDelayMs = 3000) {
     if (!config.dbHandshakeToken) {
-      throw new Error('No dbHandshakeToken configured in environment.');
+      throw new Error('No dbHandshakeToken configured in environment (DB_HANDSHAKE_SECRET or DB_HANDSHAKE_TOKEN missing).');
     }
 
     let attempt = 0;
