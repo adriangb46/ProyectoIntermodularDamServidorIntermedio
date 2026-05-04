@@ -35,21 +35,21 @@ export const config = Object.freeze({
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
 });
 
-// Validación temprana (Fail Fast)
-const missingKeys = [];
-if (!config.jwtSecret) missingKeys.push('JWT_SECRET');
-if (!config.dbHandshakeToken) missingKeys.push('DB_HANDSHAKE_SECRET/TOKEN');
-if (!config.dbServerUrl) missingKeys.push('DB_SERVER_URL');
+console.log('⚙️  Cargando configuración del sistema...');
+console.log(`   - CWD: ${process.cwd()}`);
+console.log(`   - JWT_SECRET: ${config.jwtSecret ? '✅ Presente' : '❌ AUSENTE'}`);
+console.log(`   - DB_HANDSHAKE: ${config.dbHandshakeToken ? '✅ Presente' : '❌ AUSENTE'}`);
 
-if (missingKeys.length > 0) {
-  console.warn(`⚠️ CONFIGURACIÓN INCOMPLETA: Faltan las siguientes variables: ${missingKeys.join(', ')}`);
-  console.log('💡 Tip: Asegúrate de que el archivo .env existe en la raíz del proyecto o las variables están seteadas.');
-  console.log('--- Diagnóstico de Entorno ---');
-  console.log(`CWD: ${process.cwd()}`);
-  console.log(`__dirname: ${__dirname}`);
-  console.log(`JWT_SECRET presente: ${!!process.env.JWT_SECRET}`);
-  console.log(`MIDDLE_JWT_SECRET presente: ${!!process.env.MIDDLE_JWT_SECRET}`);
-  console.log(`DB_HANDSHAKE_SECRET presente: ${!!process.env.DB_HANDSHAKE_SECRET}`);
-  console.log(`DB_HANDSHAKE_TOKEN presente: ${!!process.env.DB_HANDSHAKE_TOKEN}`);
-  console.log('------------------------------');
+if (!config.jwtSecret || !config.dbHandshakeToken || !config.dbServerUrl) {
+  const missing = [];
+  if (!config.jwtSecret) missing.push('JWT_SECRET');
+  if (!config.dbHandshakeToken) missing.push('DB_HANDSHAKE_SECRET/TOKEN');
+  if (!config.dbServerUrl) missing.push('DB_SERVER_URL');
+  
+  console.error(`🛑 ERROR DE CONFIGURACIÓN: Faltan variables críticas: ${missing.join(', ')}`);
+  console.error('El servidor no puede continuar sin estas variables.');
+  // En producción, salimos. En desarrollo, podríamos dejarlo pasar pero aquí forzamos seguridad.
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
 }
