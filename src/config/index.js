@@ -13,7 +13,7 @@ const envPaths = [
 ];
 
 for (const envPath of envPaths) {
-  dotenv.config({ path: envPath });
+  dotenv.config({ path: envPath, override: true });
 }
 
 /**
@@ -33,10 +33,6 @@ export const config = Object.freeze({
 
   // --- Configuración de Redis ---
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
-
-  // --- Economía del Juego ---
-  maxEconomicCredits: Number(process.env.MAX_ECONOMIC_CREDITS) || 1500,
-  maxResearchCredits: Number(process.env.MAX_RESEARCH_CREDITS) || 1500,
 });
 
 console.log('⚙️  Cargando configuración del sistema...');
@@ -49,7 +45,7 @@ if (!config.jwtSecret || !config.dbHandshakeToken || !config.dbServerUrl) {
   if (!config.jwtSecret) missing.push('JWT_SECRET');
   if (!config.dbHandshakeToken) missing.push('DB_HANDSHAKE_SECRET/TOKEN');
   if (!config.dbServerUrl) missing.push('DB_SERVER_URL');
-  
+
   console.error(`🛑 ERROR DE CONFIGURACIÓN: Faltan variables críticas: ${missing.join(', ')}`);
   console.error('El servidor no puede continuar sin estas variables.');
   // En producción, salimos. En desarrollo, podríamos dejarlo pasar pero aquí forzamos seguridad.

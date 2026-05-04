@@ -1,3 +1,5 @@
+import { checkJoinGameRateLimit } from '../middleware/rate-limiter.js';
+
 /**
  * Inicializa los manejadores de eventos principales de Socket.IO
  * @param {import('socket.io').Server} io Instancia del servidor de WebSockets
@@ -9,8 +11,17 @@ export const initSocketHandler = (io) => {
     console.log(`[Socket] Nuevo jugador conectado: ${username} (Socket ID: ${socket.id})`);
 
     // Manejo de la unión a la sala de la partida
-    socket.on('join_game', (payload) => {
+    socket.on('join_game', async (payload) => {
       const { gameId } = payload || {};
+
+      // Rate limiting por IP para el evento join_game (security.md §3)
+      const socketIp = socket.handshake.address;
+      const allowed = await checkJoinGameRateLimit(socketIp);
+      if (!allowed) {
+        socket.emit('error', { message: 'Demasiados intentos de unión. Inténtalo de nuevo más tarde.' });
+        return;
+      }
+
       if (gameId) {
         const roomName = `game_${gameId}`;
         socket.join(roomName);
