@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename);
  * @returns {Object} Datos de los clanes.
  */
 function loadGameData() {
-  const yamlPath = path.join(__dirname, '../../../clans.yml');
+  const yamlPath = path.join(__dirname, '../../clans.yml');
   
   try {
     const fileContents = fs.readFileSync(yamlPath, 'utf8');

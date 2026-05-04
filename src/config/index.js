@@ -1,8 +1,10 @@
 import dotenv from 'dotenv';
 
-// Cargamos el .env de la raíz del proyecto (un nivel por encima de middle_server)
-// Nota: en Docker/Producción esto se puede ignorar si las variables ya están en el entorno
-dotenv.config({ path: '../../.env' });
+// Cargamos el .env intentando varias rutas relativas comunes
+dotenv.config({ path: '.env' });          // En middle_server/
+dotenv.config({ path: '../.env' });       // En tfm/ si se lanza desde src/
+dotenv.config({ path: '../../.env' });    // En tfm/ si se lanza desde middle_server/
+dotenv.config({ path: '../../../.env' }); // En tfm/ si se lanza desde middle_server/src/
 
 /**
  * Objeto de configuración centralizado e inmutable.
@@ -23,6 +25,9 @@ export const config = Object.freeze({
 
   // Intervalo de volcado a MongoDB/Analíticas (ms). Default: 2 horas
   mongoDbDumpIntervalMs: Number(process.env.MONGODB_DUMP_INTERVAL_MS) || 7_200_000,
+
+  // --- Configuración de Redis ---
+  redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
 });
 
 // Validación temprana (Fail Fast): Si falta un secreto crítico, avisamos inmediatamente.

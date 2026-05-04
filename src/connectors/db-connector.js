@@ -13,41 +13,59 @@ class DbConnector {
   /**
    * Realiza el handshake inicial con el DB server utilizando el secreto configurado.
    * Guarda el token JWT devuelto en memoria.
+   * Incorpora lógica de reintentos con backoff exponencial para tolerar arranques lentos del DB server.
+   * @param {number} maxRetries - Número máximo de reintentos (por defecto 10)
+   * @param {number} initialDelayMs - Tiempo de espera inicial en ms (por defecto 3000)
    */
-  async performHandshake() {
+  async performHandshake(maxRetries = 10, initialDelayMs = 3000) {
     if (!config.dbHandshakeToken) {
       throw new Error('No dbHandshakeToken configured in environment.');
     }
 
-    try {
-      const response = await fetch(`${this.baseUrl}/internal/auth/handshake`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ secret: config.dbHandshakeToken })
-      });
+    let attempt = 0;
+    let delayMs = initialDelayMs;
 
-      if (!response.ok) {
-        throw new Error(`Handshake failed with status: ${response.status}`);
-      }
+    while (attempt < maxRetries) {
+      attempt++;
+      try {
+        const response = await fetch(`${this.baseUrl}/internal/auth/handshake`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ secret: config.dbHandshakeToken })
+        });
 
-      const responseBody = await response.json();
-      
-      // Asume que la respuesta exitosa viene en un envoltorio tipo { data: { token: '...' } }
-      // O directamente { token: '...' }
-      if (responseBody?.data?.token) {
-        this.token = responseBody.data.token;
-      } else if (responseBody?.token) {
-        this.token = responseBody.token;
-      } else {
-        throw new Error('Token not found in handshake response.');
+        if (!response.ok) {
+          throw new Error(`Handshake failed with status: ${response.status}`);
+        }
+
+        const responseBody = await response.json();
+
+        // Asume que la respuesta exitosa viene en un envoltorio tipo { data: { token: '...' } }
+        // O directamente { token: '...' }
+        if (responseBody?.data?.token) {
+          this.token = responseBody.data.token;
+        } else if (responseBody?.token) {
+          this.token = responseBody.token;
+        } else {
+          throw new Error('Token not found in handshake response.');
+        }
+
+        console.log('✅ DB Server handshake successful.');
+        return; // éxito → salimos del bucle
+
+      } catch (error) {
+        const isLastAttempt = attempt >= maxRetries;
+        if (isLastAttempt) {
+          console.error(`❌ Handshake fallido tras ${maxRetries} intentos: ${error.message}`);
+          throw error;
+        }
+        console.warn(`⏳ Handshake intento ${attempt}/${maxRetries} fallido (${error.message}). Reintentando en ${delayMs / 1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        // Backoff exponencial con techo en 30s
+        delayMs = Math.min(delayMs * 2, 30_000);
       }
-      
-      console.log('✅ DB Server handshake successful.');
-    } catch (error) {
-      console.error('❌ Failed to perform handshake with DB server:', error.message);
-      throw error;
     }
   }
 

@@ -107,3 +107,27 @@ export const registerController = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Controlador de Logout (HTTP REST)
+ * Invalida el token actual añadiendo su JTI a la lista negra de Redis.
+ */
+export const logoutController = async (req, res, next) => {
+  try {
+    const { jti, exp } = req.user;
+
+    // Calcular cuánto tiempo le queda al token para expirar (en segundos)
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const ttlSeconds = Math.max(exp - nowSeconds, 0);
+
+    // Añadir a la lista negra en Redis
+    const { redisConnector } = await import('../connectors/redis-connector.js');
+    await redisConnector.blacklist(jti, ttlSeconds);
+
+    console.log(`[Taquilla] Logout exitoso para JTI: ${jti}. Token invalidado en Redis.`);
+
+    return res.status(200).json({ message: "Sesión cerrada correctamente" });
+  } catch (error) {
+    next(error);
+  }
+};
