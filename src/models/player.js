@@ -35,6 +35,7 @@ export class Player {
     
     // Actividad actual
     this.researchInProgress = null; // { researchId, completesAt }
+    this.trainingQueue = [];        // [{ trainingId, troopTypeId, completesAt }]
   }
 
   /**
@@ -83,6 +84,7 @@ export class Player {
       connectedSocketId: this.connectedSocketId,
       unlockedResearches: this.unlockedResearches,
       researchInProgress: this.researchInProgress,
+      trainingQueue: this.trainingQueue,
       troops: this.troops.map(t => (typeof t.toJSON === 'function' ? t.toJSON() : t))
     };
   }

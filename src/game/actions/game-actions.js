@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { GameEvent } from '../../models/game-event.js';
 import { gameData } from '../../config/game-data-loader.js';
 
@@ -146,10 +147,92 @@ export function startGame(game, characterId, timeWheel, preparationDurationMs) {
 }
 
 /**
- * Añade una tropa a la cola de entrenamiento (Sprint 2 Logic).
- * Se incluye aquí como placeholder para el Dev B.
+ * Añade una tropa a la cola de entrenamiento.
+ *
+ * @param {import('../../models/game').Game} game
+ * @param {string} characterId
+ * @param {string} troopTypeId
+ * @param {import('../engine/time-wheel').TimeWheel} timeWheel
+ * @returns {Object} { success: boolean, message?: string, completesAt?: number }
  */
 export function trainTroop(game, characterId, troopTypeId, timeWheel) {
-  // Lógica similar de validación...
-  return { success: false, message: 'Acción de entrenamiento pendiente de implementación final.' };
+  // 1. Validar fase de la partida
+  if (!['preparation', 'war'].includes(game.phase)) {
+    return { success: false, message: 'No se pueden entrenar tropas en esta fase.' };
+  }
+
+  const player = game.getPlayer(characterId);
+  if (!player || player.eliminated) {
+    return { success: false, message: 'Jugador no encontrado o eliminado.' };
+  }
+
+  const clan = gameData[player.clanId];
+  if (!clan) {
+    return { success: false, message: 'Datos del clan no encontrados.' };
+  }
+
+  // 2. Buscar si la tropa está disponible para el jugador
+  let troopData = clan.initialTroops?.find(t => t.id === troopTypeId);
+
+  // Si no está en las iniciales, buscar en tecnologías desbloqueadas
+  if (!troopData) {
+    for (const tech of (clan.technologies || [])) {
+      if (player.unlockedResearches.includes(tech.id) && tech.unlocks && tech.unlocks.troops) {
+        const unlockedTroop = tech.unlocks.troops.find(t => t.id === troopTypeId);
+        if (unlockedTroop) {
+          troopData = unlockedTroop;
+          break;
+        }
+      }
+    }
+  }
+
+  if (!troopData) {
+    return { success: false, message: 'Tipo de tropa no encontrado o no desbloqueado.' };
+  }
+
+  // 3. Validar recursos
+  if (player.economicCredits < troopData.cost) {
+    return { success: false, message: 'Créditos económicos insuficientes.' };
+  }
+
+  // 4. Aplicar deducción de coste
+  player.economicCredits -= troopData.cost;
+
+  // 5. Calcular tiempo de completado basado en la cola
+  const now = Date.now();
+  let startTime = now;
+  
+  if (player.trainingQueue && player.trainingQueue.length > 0) {
+    const lastItem = player.trainingQueue[player.trainingQueue.length - 1];
+    if (lastItem.completesAt > now) {
+      startTime = lastItem.completesAt;
+    }
+  }
+
+  const completesAt = startTime + (troopData.trainingTimeSeconds * 1000);
+  const trainingId = randomUUID();
+
+  player.trainingQueue.push({
+    trainingId,
+    troopTypeId,
+    completesAt
+  });
+
+  // 6. Encolar evento en el Time Wheel
+  timeWheel.scheduleEvent(game.id, new GameEvent({
+    gameId: game.id,
+    type: 'TROOP_TRAINING_COMPLETE',
+    executeAt: completesAt,
+    payload: {
+      characterId,
+      troopTypeId,
+      maxPoints: troopData.power,
+      trainingId
+    }
+  }));
+
+  console.log(`[GameActions] ${characterId} recluta: ${troopTypeId}. Completa en ${Math.round((completesAt - now) / 1000)}s.`);
+
+  return { success: true, completesAt };
 }

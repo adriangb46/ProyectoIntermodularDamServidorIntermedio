@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { GameEvent } from '../../models/game-event.js';
+import { Troop } from '../../models/troop.js';
 import { checkVictory } from './victory-checker.js';
 
 /**
@@ -147,9 +148,7 @@ export class TimeWheel {
         break;
 
       case 'TROOP_TRAINING_COMPLETE':
-        // TODO (Dev B): Añadir la tropa completada al capital del jugador.
-        // event.payload = { characterId, troopTypeId }
-        console.log(`[TimeWheel] TROOP_TRAINING_COMPLETE pendiente (partida ${game.id}).`);
+        this._handleTroopTrainingComplete(game, event.payload);
         break;
 
       case 'TROOP_ARRIVAL':
@@ -294,6 +293,49 @@ export class TimeWheel {
       characterId,
       researchId,
       unlockedResearches: player.unlockedResearches
+    });
+  }
+
+  /**
+   * Finaliza el entrenamiento de una tropa.
+   * Añade la tropa a la capital del jugador y notifica al cliente.
+   *
+   * @param {import('../../models/game').Game} game
+   * @param {Object} payload - { characterId, troopTypeId, maxPoints, trainingId }
+   */
+  _handleTroopTrainingComplete(game, payload) {
+    const { characterId, troopTypeId, maxPoints, trainingId } = payload;
+    const player = game.getPlayer(characterId);
+
+    if (!player || player.eliminated) return;
+
+    // Idempotencia: Verificar si esta tarea sigue en la cola de entrenamiento
+    if (!player.trainingQueue) return;
+    const queueIndex = player.trainingQueue.findIndex(q => q.trainingId === trainingId);
+    if (queueIndex === -1) {
+      // Ya procesado o cancelado
+      return;
+    }
+
+    // Eliminar de la cola
+    player.trainingQueue.splice(queueIndex, 1);
+
+    // Instanciar tropa y añadir
+    const troop = new Troop({
+      typeId: troopTypeId,
+      clanId: player.clanId,
+      maxPoints
+    });
+
+    player.addTroop(troop);
+
+    console.log(`[TimeWheel] Entrenamiento completado: ${troopTypeId} añadido a capital de ${characterId}`);
+
+    // Notificar al jugador
+    this.io.to(`game_${game.id}`).emit('player:troop-trained', {
+      characterId,
+      troop: troop.toJSON(),
+      trainingQueue: player.trainingQueue
     });
   }
 
