@@ -31,6 +31,14 @@ export const config = Object.freeze({
   postgresDumpIntervalMs: Number(process.env.POSTGRES_DUMP_INTERVAL_MS) || 900_000,
   mongoDbDumpIntervalMs: Number(process.env.MONGODB_DUMP_INTERVAL_MS) || 7_200_000,
 
+  // --- Fases de la partida ---
+  // Duración de la fase de preparación antes de que comience la guerra (5 min por defecto)
+  preparationDurationMs: Number(process.env.PREPARATION_DURATION_MS) || 300_000,
+
+  // --- Recursos iniciales de los jugadores ---
+  maxEconomicCredits: Number(process.env.MAX_ECONOMIC_CREDITS) || 1000,
+  maxResearchCredits: Number(process.env.MAX_RESEARCH_CREDITS) || 500,
+
   // --- Configuración de Redis ---
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
 });

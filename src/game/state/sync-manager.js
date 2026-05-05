@@ -154,7 +154,8 @@ class SyncManager {
       characterId: playerData.characterId,
       userId: playerData.userId,
       clanId: playerData.clanId,
-      capitalHealth: playerData.capitalHealth
+      capitalHealth: playerData.capitalHealth,
+      isHost: !!playerData.isHost,
     });
 
     player.economicCredits = playerData.economicCredits || 0;

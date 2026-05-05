@@ -63,7 +63,9 @@ const io = new Server(httpServer, {
 io.use(socketAuthMiddleware);
 
 // 4. Iniciar Manejadores de Socket.IO
-initSocketHandler(io);
+// IMPORTANTE: se inicializa después de io para poder pasarle la referencia
+const timeWheel = new TimeWheel(gameStore, io, config);
+initSocketHandler(io, timeWheel);
 
 // 5. Arrancar el Time Wheel y el Servidor
 async function startServer() {
@@ -74,8 +76,6 @@ async function startServer() {
     // Sincronización Inicial de Partidas
     await syncManager.loadActiveGames();
 
-    // IMPORTANTE: se inicializa después de io para poder pasarle la referencia
-    const timeWheel = new TimeWheel(gameStore, io, config);
     timeWheel.start();
 
     // Arrancar volcado periódico a base de datos
