@@ -1,6 +1,6 @@
 import { checkJoinGameRateLimit } from '../middleware/rate-limiter.js';
 import { gameStore } from '../game/state/game-store.js';
-import { startGame } from '../game/actions/game-actions.js';
+import { startGame, launchAttack } from '../game/actions/game-actions.js';
 import { config } from '../config/index.js';
 
 /**
@@ -95,6 +95,75 @@ export const initSocketHandler = (io, timeWheel) => {
       });
 
       console.log(`[Socket] Partida ${gameId} iniciada. Notificación enviada a la sala ${roomName}.`);
+    });
+
+    // -------------------------------------------------------------------------
+    // Evento: game:attack
+    // El jugador despliega tropas seleccionadas hacia la capital de un rival.
+    // Payload: { gameId, targetCharacterId, troopIds: string[] }
+    // -------------------------------------------------------------------------
+    socket.on('game:attack', (payload) => {
+      const { gameId, targetCharacterId, troopIds } = payload || {};
+
+      // 1. Validar campos obligatorios (security.md §4)
+      if (!gameId || typeof gameId !== 'string') {
+        socket.emit('game:error', { message: 'gameId inválido o ausente.' });
+        return;
+      }
+      if (!targetCharacterId || typeof targetCharacterId !== 'string') {
+        socket.emit('game:error', { message: 'targetCharacterId inválido o ausente.' });
+        return;
+      }
+      if (!Array.isArray(troopIds) || troopIds.length === 0) {
+        socket.emit('game:error', { message: 'Debes enviar al menos un ID de tropa en troopIds.' });
+        return;
+      }
+
+      // 2. Verificar que el socket está en la sala de la partida
+      const roomName = `game_${gameId}`;
+      if (!socket.rooms.has(roomName)) {
+        socket.emit('game:error', { message: 'No estás en la sala de esa partida.' });
+        return;
+      }
+
+      // 3. Obtener la partida del GameStore (security.md §5)
+      const game = gameStore.getGame(gameId);
+      if (!game) {
+        socket.emit('game:error', { message: 'Partida no encontrada.' });
+        return;
+      }
+
+      // 4. characterId proviene del JWT, nunca del payload del cliente
+      if (!characterId) {
+        socket.emit('game:error', { message: 'No se pudo identificar tu personaje. Vuelve a conectarte.' });
+        return;
+      }
+
+      // 5. Delegar en la lógica de negocio
+      const result = launchAttack(game, characterId, targetCharacterId, troopIds, timeWheel);
+
+      if (!result.success) {
+        socket.emit('game:error', { message: result.message });
+        return;
+      }
+
+      // 6. Confirmar al atacante con el timestamp de llegada
+      socket.emit('game:attack-launched', {
+        arrivalAt: result.arrivalAt,
+        troopCount: troopIds.length,
+      });
+
+      // 7. Notificar a toda la sala que hay tropas en movimiento
+      // (Fog of War: no se revela el objetivo ni qué tropas se enviaron)
+      io.to(roomName).emit('game:troop-deployed', {
+        attackerCharacterId: characterId,
+        troopCount: troopIds.length,
+      });
+
+      console.log(
+        `[Socket] Ataque lanzado por ${username} (${characterId}) → ${targetCharacterId}. ` +
+        `Sala: ${roomName}.`
+      );
     });
 
     // -------------------------------------------------------------------------

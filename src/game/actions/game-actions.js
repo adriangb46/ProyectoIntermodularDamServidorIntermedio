@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { GameEvent } from '../../models/game-event.js';
 import { gameData } from '../../config/game-data-loader.js';
+import { config } from '../../config/index.js';
 
 /**
  * Lógica de negocio para las acciones de juego.
@@ -235,4 +236,100 @@ export function trainTroop(game, characterId, troopTypeId, timeWheel) {
   console.log(`[GameActions] ${characterId} recluta: ${troopTypeId}. Completa en ${Math.round((completesAt - now) / 1000)}s.`);
 
   return { success: true, completesAt };
+}
+/**
+ * Despliega un conjunto de tropas del jugador hacia la capital de otro jugador.
+ *
+ * Validaciones:
+ *  - La partida debe estar en fase `war`.
+ *  - El atacante es un jugador válido y no eliminado.
+ *  - El objetivo existe, es distinto al atacante y no está eliminado.
+ *  - `troopIds` es un array no vacío con al menos un ID.
+ *  - Cada tropa pertenece al atacante, está en capital (deployed === false) y tiene vida.
+ *
+ * @param {import('../../models/game').Game} game                   - Partida activa.
+ * @param {string}                           characterId            - characterId del atacante (del JWT).
+ * @param {string}                           targetCharacterId      - characterId del objetivo.
+ * @param {string[]}                         troopIds               - IDs de instancias de tropa a desplegar.
+ * @param {import('../engine/time-wheel').TimeWheel} timeWheel      - Motor de tiempo para encolar TROOP_ARRIVAL.
+ * @returns {{ success: boolean, message?: string, arrivalAt?: number }}
+ */
+export function launchAttack(game, characterId, targetCharacterId, troopIds, timeWheel) {
+  // 1. Solo se puede atacar en fase guerra
+  if (game.phase !== 'war') {
+    return { success: false, message: 'Solo se puede atacar durante la fase de guerra.' };
+  }
+
+  // 2. Validar atacante
+  const attacker = game.getPlayer(characterId);
+  if (!attacker || attacker.eliminated) {
+    return { success: false, message: 'Jugador atacante no encontrado o eliminado.' };
+  }
+
+  // 3. No puede atacarse a sí mismo
+  if (characterId === targetCharacterId) {
+    return { success: false, message: 'No puedes atacar tu propia capital.' };
+  }
+
+  // 4. Validar objetivo
+  const target = game.getPlayer(targetCharacterId);
+  if (!target) {
+    return { success: false, message: 'El jugador objetivo no existe en esta partida.' };
+  }
+  if (target.eliminated) {
+    return { success: false, message: 'El jugador objetivo ya ha sido eliminado.' };
+  }
+
+  // 5. Validar la lista de tropas
+  if (!Array.isArray(troopIds) || troopIds.length === 0) {
+    return { success: false, message: 'Debes seleccionar al menos una tropa para atacar.' };
+  }
+
+  // Verificar que cada ID es string válido (security.md §4: validación de inputs)
+  if (troopIds.some(id => typeof id !== 'string' || id.trim() === '')) {
+    return { success: false, message: 'Uno o más IDs de tropa son inválidos.' };
+  }
+
+  // Resolver instancias de tropa y validar su estado
+  const troopsToSend = [];
+  for (const troopId of troopIds) {
+    const troop = attacker.troops.find(t => t.id === troopId);
+    if (!troop) {
+      return { success: false, message: `Tropa ${troopId} no encontrada en tu capital.` };
+    }
+    if (troop.deployed) {
+      return { success: false, message: `La tropa ${troopId} ya está desplegada en campaña.` };
+    }
+    if (troop.currentPoints <= 0) {
+      return { success: false, message: `La tropa ${troopId} no tiene puntos de vida y no puede combatir.` };
+    }
+    troopsToSend.push(troop);
+  }
+
+  // 6. Calcular tiempo de llegada (fijo, configurable por variable de entorno)
+  const now = Date.now();
+  const arrivalAt = now + config.troopTravelTimeMs;
+
+  // 7. Desplegar cada tropa y encolar un evento TROOP_ARRIVAL por instancia
+  for (const troop of troopsToSend) {
+    troop.deploy(targetCharacterId, arrivalAt);
+
+    timeWheel.scheduleEvent(game.id, new GameEvent({
+      gameId: game.id,
+      type: 'TROOP_ARRIVAL',
+      executeAt: arrivalAt,
+      payload: {
+        troopId: troop.id,
+        attackerCharacterId: characterId,
+        targetCharacterId,
+      },
+    }));
+  }
+
+  console.log(
+    `[GameActions] ${characterId} lanza ataque contra ${targetCharacterId} ` +
+    `con ${troopsToSend.length} tropa(s). Llegada en ${config.troopTravelTimeMs / 1000}s (arrivalAt: ${arrivalAt}).`
+  );
+
+  return { success: true, arrivalAt };
 }

@@ -152,12 +152,7 @@ export class TimeWheel {
         break;
 
       case 'TROOP_ARRIVAL':
-        // TODO (Sprint 3): Invocar combat-resolver con los datos del ataque.
-        // event.payload = { troopId, attackerCharacterId, targetCharacterId }
-        console.log(`[TimeWheel] TROOP_ARRIVAL pendiente de combat-resolver (partida ${game.id}).`);
-        // Sprint 4: Comprobar condición de victoria tras resolver el combate.
-        // Cuando combat-resolver esté implementado, mover esta llamada a _handleTroopArrival().
-        checkVictory(game, this.io);
+        this._handleTroopArrival(game, event.payload);
         break;
 
       case 'DB_DUMP_POSTGRES':
@@ -337,6 +332,73 @@ export class TimeWheel {
       troop: troop.toJSON(),
       trainingQueue: player.trainingQueue
     });
+  }
+
+  /**
+   * Gestiona la llegada de una tropa al destino de ataque.
+   * Aplica idempotencia, maneja al defensor eliminado y deja el hueco para combat-resolver (Sprint 3 Punto 2).
+   *
+   * @param {import('../../models/game').Game} game
+   * @param {Object} payload - { troopId, attackerCharacterId, targetCharacterId }
+   */
+  _handleTroopArrival(game, payload) {
+    const { troopId, attackerCharacterId, targetCharacterId } = payload;
+
+    // Buscar al jugador atacante
+    const attacker = game.getPlayer(attackerCharacterId);
+    if (!attacker) {
+      console.warn(`[TimeWheel] _handleTroopArrival: atacante ${attackerCharacterId} no existe (partida ${game.id}).`);
+      return;
+    }
+
+    // Buscar la tropa por su ID único
+    const troop = attacker.troops.find(t => t.id === troopId);
+    if (!troop) {
+      console.warn(`[TimeWheel] _handleTroopArrival: tropa ${troopId} no encontrada para atacante ${attackerCharacterId}.`);
+      return;
+    }
+
+    // Idempotencia: si la tropa ya no está desplegada, el evento ya fue procesado o fue cancelado
+    if (!troop.deployed) {
+      return;
+    }
+
+    // Caso especial: el defensor fue eliminado mientras la tropa viajaba
+    const defender = game.getPlayer(targetCharacterId);
+    if (!defender || defender.eliminated) {
+      console.log(`[TimeWheel] Objetivo ${targetCharacterId} ya eliminado. Tropa ${troopId} regresa a casa.`);
+      troop.returnHome();
+      this.io.to(`game_${game.id}`).emit('game:troop-returned', {
+        attackerCharacterId,
+        troopId,
+        reason: 'target_eliminated',
+      });
+      return;
+    }
+
+    // TODO (Sprint 3 — Punto 2): Integrar combat-resolver.
+    // Cuando combat-resolver.js esté implementado, sustituir este bloque:
+    //   const battleResult = combatResolver.resolveBattle(attacker, defender, troop, game);
+    //   ... aplicar daño, limpiar tropas muertas, emitir eventos ...
+    // Por ahora la tropa llega pero no inflige daño (stub seguro).
+    console.log(
+      `[TimeWheel] TROOP_ARRIVAL: tropa ${troopId} de ${attackerCharacterId} llega a ${targetCharacterId}. ` +
+      `(combat-resolver pendiente — Sprint 3 Punto 2)`
+    );
+
+    // La tropa regresa a la capital del atacante tras el "combate" (stub)
+    troop.returnHome();
+
+    // Notificar a todos los jugadores de la sala
+    this.io.to(`game_${game.id}`).emit('game:battle-result', {
+      attackerCharacterId,
+      targetCharacterId,
+      troopId,
+      resolved: false, // Indicador de que combat-resolver aún no está activo
+    });
+
+    // Comprobar condición de victoria (ya implementado en Sprint 4)
+    checkVictory(game, this.io);
   }
 
   // ---------------------------------------------------------------------------
