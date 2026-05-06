@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { GameEvent } from '../../models/game-event.js';
 import { Troop } from '../../models/troop.js';
 import { checkVictory } from './victory-checker.js';
+import { resolveBattle } from './combat-resolver.js';
+import { gameData } from '../../config/game-data-loader.js';
 
 /**
  * Motor de tiempo centralizado del Middle Server.
@@ -376,28 +378,42 @@ export class TimeWheel {
       return;
     }
 
-    // TODO (Sprint 3 — Punto 2): Integrar combat-resolver.
-    // Cuando combat-resolver.js esté implementado, sustituir este bloque:
-    //   const battleResult = combatResolver.resolveBattle(attacker, defender, troop, game);
-    //   ... aplicar daño, limpiar tropas muertas, emitir eventos ...
-    // Por ahora la tropa llega pero no inflige daño (stub seguro).
-    console.log(
-      `[TimeWheel] TROOP_ARRIVAL: tropa ${troopId} de ${attackerCharacterId} llega a ${targetCharacterId}. ` +
-      `(combat-resolver pendiente — Sprint 3 Punto 2)`
+    // --- Resolución de combate real (Sprint 3 Punto 2) ---
+    // La tropa que dispara este evento es la única participante del ataque
+    const attackingTroops = [troop];
+    const result = resolveBattle(attacker, defender, attackingTroops, gameData);
+
+    // Aplicar créditos de investigación al atacante (con cap al máximo configurado)
+    attacker.researchCredits = Math.min(
+      attacker.researchCredits + result.researchCreditsEarned,
+      this.config.maxResearchCredits
     );
 
-    // La tropa regresa a la capital del atacante tras el "combate" (stub)
-    troop.returnHome();
+    // Retornar tropas supervivientes a la capital del atacante
+    for (const survivor of result.attackerSurvivors) {
+      survivor.returnHome();
+    }
+
+    console.log(
+      `[TimeWheel] Batalla resuelta: ${attackerCharacterId} → ${targetCharacterId}. ` +
+      `Multiplicador tipo: x${result.typeMultiplier}, Daño a capital: ${result.capitalDamage}, ` +
+      `Eliminado: ${result.defenderEliminated}, ` +
+      `Tropas atacantes perdidas: ${result.attackerTroopsLost.length}`
+    );
 
     // Notificar a todos los jugadores de la sala
+    // Fog of War: sin IDs de tropas individuales ni vida exacta del defensor
     this.io.to(`game_${game.id}`).emit('game:battle-result', {
       attackerCharacterId,
       targetCharacterId,
-      troopId,
-      resolved: false, // Indicador de que combat-resolver aún no está activo
+      capitalDamage: result.capitalDamage,
+      attackerTroopsLost: result.attackerTroopsLost.length,
+      defenderTroopsDestroyed: result.defenderTroopsDestroyed.length,
+      defenderEliminated: result.defenderEliminated,
+      researchCreditsEarned: result.researchCreditsEarned,
     });
 
-    // Comprobar condición de victoria (ya implementado en Sprint 4)
+    // Comprobar condición de victoria tras la batalla
     checkVictory(game, this.io);
   }
 
