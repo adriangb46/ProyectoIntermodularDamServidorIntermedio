@@ -4,6 +4,7 @@ import { Troop } from '../../models/troop.js';
 import { checkVictory } from './victory-checker.js';
 import { resolveBattle } from './combat-resolver.js';
 import { gameData } from '../../config/game-data-loader.js';
+import { buildGameView } from './fog-of-war.js';
 
 /**
  * Motor de tiempo centralizado del Middle Server.
@@ -219,8 +220,17 @@ export class TimeWheel {
 
     console.log(`[TimeWheel] RESOURCE_TICK ejecutado (partida ${game.id}, fase ${game.phase}). Siguiente en ${nextTickDelay}ms.`);
 
-    // Emitir volcado de estado a los clientes de la partida
-    this.io.to(`game_${game.id}`).emit('game:state-update', game.toJSON());
+    // Emitir vista filtrada por Fog of War a cada jugador conectado individualmente.
+    // No se puede hacer un broadcast a la sala completa porque cada jugador
+    // debe recibir una versión diferente del estado (sus datos completos + rivales censurados).
+    for (const player of Object.values(game.players)) {
+      if (player.connectedSocketId) {
+        this.io.to(player.connectedSocketId).emit(
+          'game:state-update',
+          buildGameView(game, player.characterId)
+        );
+      }
+    }
 
     // Programar el siguiente tick
     this.scheduleEvent(game.id, new GameEvent({

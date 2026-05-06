@@ -2,6 +2,7 @@ import { checkJoinGameRateLimit } from '../middleware/rate-limiter.js';
 import { gameStore } from '../game/state/game-store.js';
 import { startGame, launchAttack, trainTroop, startResearch } from '../game/actions/game-actions.js';
 import { config } from '../config/index.js';
+import { buildGameView } from '../game/engine/fog-of-war.js';
 
 /**
  * Inicializa los manejadores de eventos principales de Socket.IO.
@@ -41,11 +42,15 @@ export const initSocketHandler = (io, timeWheel) => {
       socket.join(roomName);
       console.log(`[Socket] Jugador ${username} se ha unido a la sala: ${roomName}`);
 
-      // Enviar el estado actual de la partida al jugador recién unido.
-      // El filtrado Fog of War se aplica en Sprint 4 Punto 2.
+      // Registrar el socketId en el modelo del jugador para permitir emisiones individuales (Fog of War)
       const game = gameStore.getGame(gameId);
       if (game) {
-        socket.emit('game:state-sync', game.toJSON());
+        const player = game.getPlayer(characterId);
+        if (player) {
+          player.connectedSocketId = socket.id;
+        }
+        // Emitir estado inicial filtrado por Fog of War: el jugador solo ve lo que le corresponde
+        socket.emit('game:state-sync', buildGameView(game, characterId));
       }
     });
 
