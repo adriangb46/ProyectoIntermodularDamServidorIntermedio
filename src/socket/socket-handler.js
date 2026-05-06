@@ -1,6 +1,6 @@
 import { checkJoinGameRateLimit } from '../middleware/rate-limiter.js';
 import { gameStore } from '../game/state/game-store.js';
-import { startGame, launchAttack } from '../game/actions/game-actions.js';
+import { startGame, launchAttack, trainTroop, startResearch } from '../game/actions/game-actions.js';
 import { config } from '../config/index.js';
 
 /**
@@ -41,8 +41,12 @@ export const initSocketHandler = (io, timeWheel) => {
       socket.join(roomName);
       console.log(`[Socket] Jugador ${username} se ha unido a la sala: ${roomName}`);
 
-      // TODO: Enviar el estado actual de la partida al jugador recién unido
-      // socket.emit('game:state-sync', game.toJSON());
+      // Enviar el estado actual de la partida al jugador recién unido.
+      // El filtrado Fog of War se aplica en Sprint 4 Punto 2.
+      const game = gameStore.getGame(gameId);
+      if (game) {
+        socket.emit('game:state-sync', game.toJSON());
+      }
     });
 
     // -------------------------------------------------------------------------
@@ -164,6 +168,121 @@ export const initSocketHandler = (io, timeWheel) => {
         `[Socket] Ataque lanzado por ${username} (${characterId}) → ${targetCharacterId}. ` +
         `Sala: ${roomName}.`
       );
+    });
+
+    // -------------------------------------------------------------------------
+    // Evento: game:train
+    // El jugador añade una tropa a la cola de entrenamiento.
+    // Payload: { gameId, troopTypeId }
+    // -------------------------------------------------------------------------
+    socket.on('game:train', (payload) => {
+      const { gameId, troopTypeId } = payload || {};
+
+      // 1. Validar campos obligatorios (security.md §4)
+      if (!gameId || typeof gameId !== 'string') {
+        socket.emit('game:error', { message: 'gameId inválido o ausente.' });
+        return;
+      }
+      if (!troopTypeId || typeof troopTypeId !== 'string') {
+        socket.emit('game:error', { message: 'troopTypeId inválido o ausente.' });
+        return;
+      }
+
+      // 2. Verificar que el socket está en la sala de la partida
+      const roomName = `game_${gameId}`;
+      if (!socket.rooms.has(roomName)) {
+        socket.emit('game:error', { message: 'No estás en la sala de esa partida.' });
+        return;
+      }
+
+      // 3. Recuperar la partida del GameStore (security.md §5)
+      const game = gameStore.getGame(gameId);
+      if (!game) {
+        socket.emit('game:error', { message: 'Partida no encontrada.' });
+        return;
+      }
+
+      // 4. characterId proviene del JWT, nunca del payload del cliente
+      if (!characterId) {
+        socket.emit('game:error', { message: 'No se pudo identificar tu personaje. Vuelve a conectarte.' });
+        return;
+      }
+
+      // 5. Delegar en la lógica de negocio
+      const result = trainTroop(game, characterId, troopTypeId, timeWheel);
+
+      if (!result.success) {
+        socket.emit('game:error', { message: result.message });
+        return;
+      }
+
+      // 6. Confirmar al jugador: cola de entrenamiento actualizada y créditos descontados
+      const player = game.getPlayer(characterId);
+      socket.emit('player:train-queued', {
+        troopTypeId,
+        completesAt: result.completesAt,
+        trainingQueue: player.trainingQueue,
+        economicCredits: player.economicCredits,
+      });
+
+      console.log(`[Socket] ${username} (${characterId}) encoló entrenamiento: ${troopTypeId}.`);
+    });
+
+    // -------------------------------------------------------------------------
+    // Evento: game:research
+    // El jugador inicia una investigación tecnológica.
+    // Payload: { gameId, researchId }
+    // -------------------------------------------------------------------------
+    socket.on('game:research', (payload) => {
+      const { gameId, researchId } = payload || {};
+
+      // 1. Validar campos obligatorios (security.md §4)
+      if (!gameId || typeof gameId !== 'string') {
+        socket.emit('game:error', { message: 'gameId inválido o ausente.' });
+        return;
+      }
+      if (!researchId || typeof researchId !== 'string') {
+        socket.emit('game:error', { message: 'researchId inválido o ausente.' });
+        return;
+      }
+
+      // 2. Verificar que el socket está en la sala de la partida
+      const roomName = `game_${gameId}`;
+      if (!socket.rooms.has(roomName)) {
+        socket.emit('game:error', { message: 'No estás en la sala de esa partida.' });
+        return;
+      }
+
+      // 3. Recuperar la partida del GameStore (security.md §5)
+      const game = gameStore.getGame(gameId);
+      if (!game) {
+        socket.emit('game:error', { message: 'Partida no encontrada.' });
+        return;
+      }
+
+      // 4. characterId proviene del JWT, nunca del payload del cliente
+      if (!characterId) {
+        socket.emit('game:error', { message: 'No se pudo identificar tu personaje. Vuelve a conectarte.' });
+        return;
+      }
+
+      // 5. Delegar en la lógica de negocio
+      const result = startResearch(game, characterId, researchId, timeWheel);
+
+      if (!result.success) {
+        socket.emit('game:error', { message: result.message });
+        return;
+      }
+
+      // 6. Confirmar al jugador: investigación en curso y créditos descontados
+      const player = game.getPlayer(characterId);
+      socket.emit('player:research-started', {
+        researchId,
+        researchInProgress: player.researchInProgress,
+        researchCredits: player.researchCredits,
+      });
+
+      console.log(`[Socket] ${username} (${characterId}) inició investigación: ${researchId}.`);
     });
 
     // -------------------------------------------------------------------------
