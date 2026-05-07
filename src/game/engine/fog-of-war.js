@@ -65,6 +65,7 @@ function _buildSelfView(player) {
   return {
     characterId:       player.characterId,
     username:          player.username,
+    clan:              player.clanId,
     clanId:            player.clanId,
     isHost:            player.isHost,
     capitalHealth:     player.capitalHealth,
@@ -98,6 +99,7 @@ function _buildRivalView(player) {
   return {
     characterId:   player.characterId,
     username:      player.username,
+    clan:          player.clanId,
     clanId:        player.clanId,
     isHost:        player.isHost,
     capitalHealth: player.capitalHealth,

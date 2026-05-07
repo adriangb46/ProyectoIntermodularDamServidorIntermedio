@@ -8,6 +8,25 @@ import { Player } from '../models/player.js';
 import { Game } from '../models/game.js';
 
 /**
+ * Envía el estado actualizado de la partida a todos los jugadores conectados,
+ * aplicando las reglas de Fog of War de forma individualizada.
+ *
+ * @param {import('socket.io').Server} io
+ * @param {import('../models/game').Game} game
+ */
+const syncGameStateToAll = (io, game) => {
+  for (const player of Object.values(game.players)) {
+    if (player.connectedSocketId) {
+      const view = buildGameView(game, player.characterId);
+      io.to(player.connectedSocketId).emit('game:state-sync', { 
+        ...view, 
+        myCharacterId: player.characterId 
+      });
+    }
+  }
+};
+
+/**
  * Inicializa los manejadores de eventos principales de Socket.IO.
  * Recibe el timeWheel para poder programar eventos desde los handlers.
  *
@@ -90,9 +109,8 @@ export const initSocketHandler = (io, timeWheel) => {
           
           console.log(`[Socket] Jugador ${username} se ha unido a la sala: ${roomName}`);
 
-          // Emitir estado inicial filtrado por Fog of War: el jugador solo ve lo que le corresponde
-          const view = buildGameView(game, charId);
-          socket.emit('game:state-sync', { ...view, myCharacterId: charId });
+          // Sincronizar estado para TODOS los participantes de la partida
+          syncGameStateToAll(io, game);
         } else {
           console.warn(`[Socket] Jugador ${username} no encontrado en la partida ${gameId}`);
           socket.emit('game:error', { message: 'No eres participante de esta partida.' });
@@ -149,9 +167,8 @@ export const initSocketHandler = (io, timeWheel) => {
 
         socket.emit('game:created', gameDto);
         
-        // Enviar estado inicial
-        const view = buildGameView(newGame, character.id);
-        socket.emit('game:state-sync', { ...view, myCharacterId: character.id });
+        // Enviar estado inicial sincronizado
+        syncGameStateToAll(io, newGame);
 
         console.log(`[Socket] Partida ${gameDto.id} creada por ${username}`);
       } catch (err) {
