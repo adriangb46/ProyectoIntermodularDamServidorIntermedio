@@ -5,6 +5,7 @@ import { checkVictory } from './victory-checker.js';
 import { resolveBattle } from './combat-resolver.js';
 import { gameData } from '../../config/game-data-loader.js';
 import { buildGameView } from './fog-of-war.js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * Motor de tiempo centralizado del Middle Server.
@@ -54,7 +55,7 @@ export class TimeWheel {
       return;
     }
     this._interval = setInterval(() => this._processTick(), this.config.timeWheelTickMs);
-    console.log(`[TimeWheel] Arrancado. Tick cada ${this.config.timeWheelTickMs}ms.`);
+    logger.info(`[TimeWheel] Arrancado. Tick cada ${this.config.timeWheelTickMs}ms.`);
   }
 
   /**
@@ -65,7 +66,7 @@ export class TimeWheel {
     if (this._interval) {
       clearInterval(this._interval);
       this._interval = null;
-      console.log('[TimeWheel] Detenido.');
+      logger.info('[TimeWheel] Detenido.');
     }
   }
 
@@ -161,14 +162,14 @@ export class TimeWheel {
       case 'DB_DUMP_POSTGRES':
         // TODO (Dev B): Serializar game.toJSON() y enviar al DB Server via HTTP.
         // Tras el volcado, re-encolar el siguiente DB_DUMP_POSTGRES.
-        console.log(`[TimeWheel] DB_DUMP_POSTGRES pendiente de DB connector (partida ${game.id}).`);
+        logger.debug({ gameId: game.id }, '[TimeWheel] DB_DUMP_POSTGRES pendiente de DB connector');
         this._rescheduleRecurring(game, 'DB_DUMP_POSTGRES', this.config.postgresDumpIntervalMs, now);
         break;
 
       case 'DB_DUMP_MONGODB':
         // TODO (Dev B): Enviar snapshot analítico al DB Server via HTTP.
         // Tras el volcado, re-encolar el siguiente DB_DUMP_MONGODB.
-        console.log(`[TimeWheel] DB_DUMP_MONGODB pendiente de DB connector (partida ${game.id}).`);
+        logger.debug({ gameId: game.id }, '[TimeWheel] DB_DUMP_MONGODB pendiente de DB connector');
         this._rescheduleRecurring(game, 'DB_DUMP_MONGODB', this.config.mongoDbDumpIntervalMs, now);
         break;
 
@@ -218,7 +219,7 @@ export class TimeWheel {
       }
     }
 
-    console.log(`[TimeWheel] RESOURCE_TICK ejecutado (partida ${game.id}, fase ${game.phase}). Siguiente en ${nextTickDelay}ms.`);
+    logger.debug({ gameId: game.id, phase: game.phase, nextTickDelay }, '[TimeWheel] RESOURCE_TICK ejecutado');
 
     // Emitir vista filtrada por Fog of War a cada jugador conectado individualmente.
     // No se puede hacer un broadcast a la sala completa porque cada jugador
@@ -226,7 +227,7 @@ export class TimeWheel {
     for (const player of Object.values(game.players)) {
       if (player.connectedSocketId) {
         this.io.to(player.connectedSocketId).emit(
-          'game:state-update',
+          'game:state-sync',
           buildGameView(game, player.characterId)
         );
       }
@@ -254,12 +255,12 @@ export class TimeWheel {
     }
 
     game.setPhase('war');
-    console.log(`[TimeWheel] Partida ${game.id} → fase GUERRA iniciada.`);
+    logger.info({ gameId: game.id }, '[TimeWheel] Fase GUERRA iniciada');
 
     // Notificar a todos los clientes conectados en la sala de la partida
-    this.io.to(`game_${game.id}`).emit('game:phase-change', {
+    this.io.to(`game_${game.id}`).emit('game:phase-changed', {
       gameId: game.id,
-      phase: 'war',
+      newPhase: 'war',
     });
 
     // Programar el primer tick de recursos (intervalo aleatorio 30-60s según arquitectura)
@@ -293,14 +294,24 @@ export class TimeWheel {
     player.unlockedResearches.push(researchId);
     player.researchInProgress = null;
 
-    console.log(`[TimeWheel] Investigación completada: ${researchId} para ${characterId}`);
+    logger.info({ characterId, researchId }, '[TimeWheel] Investigación completada');
 
     // Notificar al jugador
-    this.io.to(`game_${game.id}`).emit('player:research-complete', {
-      characterId,
-      researchId,
-      unlockedResearches: player.unlockedResearches
-    });
+    // Notificar al jugador afectado
+    if (player.connectedSocketId) {
+      this.io.to(player.connectedSocketId).emit('player:research-complete', {
+        characterId,
+        researchId,
+        unlockedResearches: player.unlockedResearches
+      });
+    }
+
+    // Sincronizar estado completo para reflejar el cambio en la cola/investigación
+    for (const p of Object.values(game.players)) {
+      if (p.connectedSocketId) {
+        this.io.to(p.connectedSocketId).emit('game:state-sync', buildGameView(game, p.characterId));
+      }
+    }
   }
 
   /**
@@ -336,14 +347,24 @@ export class TimeWheel {
 
     player.addTroop(troop);
 
-    console.log(`[TimeWheel] Entrenamiento completado: ${troopTypeId} añadido a capital de ${characterId}`);
+    logger.info({ characterId, troopTypeId }, '[TimeWheel] Entrenamiento completado');
 
     // Notificar al jugador
-    this.io.to(`game_${game.id}`).emit('player:troop-trained', {
-      characterId,
-      troop: troop.toJSON(),
-      trainingQueue: player.trainingQueue
-    });
+    // Notificar al jugador afectado
+    if (player.connectedSocketId) {
+      this.io.to(player.connectedSocketId).emit('player:troop-trained', {
+        characterId,
+        troop: troop.toJSON(),
+        trainingQueue: player.trainingQueue
+      });
+    }
+
+    // Sincronizar estado completo para reflejar la nueva tropa en el capital
+    for (const p of Object.values(game.players)) {
+      if (p.connectedSocketId) {
+        this.io.to(p.connectedSocketId).emit('game:state-sync', buildGameView(game, p.characterId));
+      }
+    }
   }
 
   /**
@@ -378,7 +399,7 @@ export class TimeWheel {
     // Caso especial: el defensor fue eliminado mientras la tropa viajaba
     const defender = game.getPlayer(targetCharacterId);
     if (!defender || defender.eliminated) {
-      console.log(`[TimeWheel] Objetivo ${targetCharacterId} ya eliminado. Tropa ${troopId} regresa a casa.`);
+      logger.info({ troopId, targetCharacterId }, '[TimeWheel] Objetivo ya eliminado. Tropa regresa a casa.');
       troop.returnHome();
       this.io.to(`game_${game.id}`).emit('game:troop-returned', {
         attackerCharacterId,
@@ -404,12 +425,13 @@ export class TimeWheel {
       survivor.returnHome();
     }
 
-    console.log(
-      `[TimeWheel] Batalla resuelta: ${attackerCharacterId} → ${targetCharacterId}. ` +
-      `Multiplicador tipo: x${result.typeMultiplier}, Daño a capital: ${result.capitalDamage}, ` +
-      `Eliminado: ${result.defenderEliminated}, ` +
-      `Tropas atacantes perdidas: ${result.attackerTroopsLost.length}`
-    );
+    logger.info({
+      gameId: game.id,
+      attacker: attackerCharacterId,
+      target: targetCharacterId,
+      damage: result.capitalDamage,
+      eliminated: result.defenderEliminated
+    }, '[TimeWheel] Batalla resuelta');
 
     // Notificar a todos los jugadores de la sala
     // Fog of War: sin IDs de tropas individuales ni vida exacta del defensor

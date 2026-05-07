@@ -11,6 +11,7 @@ import { gameStore } from './src/game/state/game-store.js';
 import { gameData } from './src/config/game-data-loader.js';
 import { dbConnector } from './src/db/db-connector.js';
 import { syncManager } from './src/game/state/sync-manager.js';
+import { logger } from './src/utils/logger.js';
 
 // 1. Inicialización de Express (Servidor HTTP)
 const app = express();
@@ -31,12 +32,17 @@ app.use((req, res, next) => {
     // Sanitizar body para logs (no imprimir contraseñas)
     const sanitizedBody = req.body ? { ...req.body } : {};
     if (sanitizedBody.password) sanitizedBody.password = '[REDACTED]';
+    if (sanitizedBody.password) sanitizedBody.password = '[REDACTED]';
     if (sanitizedBody.secret) sanitizedBody.secret = '[REDACTED]';
     
-    console.log(`[HTTP] ${req.method} ${req.originalUrl} - ${res.statusCode} [${duration}ms]`);
-    // Imprimir query y body solo si tienen contenido útil
-    if (Object.keys(req.query).length > 0) console.log(`       Query:`, req.query);
-    if (Object.keys(sanitizedBody).length > 0) console.log(`       Body:`, sanitizedBody);
+    logger.info({
+      method: req.method,
+      url: req.originalUrl,
+      status: res.statusCode,
+      duration: `${duration}ms`,
+      query: Object.keys(req.query).length > 0 ? req.query : undefined,
+      body: Object.keys(sanitizedBody).length > 0 ? sanitizedBody : undefined
+    }, '[HTTP] Request processed');
   });
   next();
 });
@@ -49,9 +55,9 @@ app.use((err, req, res, next) => {
   const status = err.status || 500;
   
   if (status === 500) {
-    console.error('[HTTP Error 500]', err.stack);
+    logger.error({ err: err.stack }, '[HTTP Error 500]');
   } else {
-    console.warn(`[HTTP Error ${status}] ${err.message}`);
+    logger.warn({ status, msg: err.message }, '[HTTP Error]');
   }
 
   res.status(status).json({ 
@@ -80,7 +86,7 @@ initSocketHandler(io, timeWheel);
 // 5. Arrancar el Time Wheel y el Servidor
 async function startServer() {
   try {
-    console.log('🔄 Iniciando handshake con DB Server...');
+    logger.info('[Startup] Iniciando handshake con DB Server...');
     await dbConnector.performHandshake();
 
     // Sincronización Inicial de Partidas
@@ -94,13 +100,13 @@ async function startServer() {
 
     // Arrancar el servidor HTTP
     httpServer.listen(config.port, () => {
-      console.log(`🛡️ Middle Server corriendo en el puerto ${config.port}`);
-      console.log(`🚀 Rutas HTTP mapeadas bajo /api`);
-      console.log(`⚡ WebSockets listos y asegurados por JWT`);
-      console.log(`⏱️  Time Wheel activo (tick cada ${config.timeWheelTickMs}ms)`);
+      logger.info({ port: config.port }, '🛡️ Middle Server corriendo');
+      logger.debug('🚀 Rutas HTTP mapeadas bajo /api');
+      logger.debug('⚡ WebSockets listos y asegurados por JWT');
+      logger.debug({ tickMs: config.timeWheelTickMs }, '⏱️  Time Wheel activo');
     });
   } catch (error) {
-    console.error('❌ Error crítico durante el arranque del Middle Server:', error.message);
+    logger.error({ err: error.message }, '❌ Error crítico durante el arranque');
     process.exit(1);
   }
 }

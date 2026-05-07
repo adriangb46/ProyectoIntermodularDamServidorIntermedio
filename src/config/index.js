@@ -62,21 +62,25 @@ export const config = Object.freeze({
   rateLimitJoinGameMax: Number(process.env.RATE_LIMIT_JOIN_GAME_MAX) || 40,
 });
 
-console.log('⚙️  Cargando configuración del sistema...');
-console.log(`   - CWD: ${process.cwd()}`);
-console.log(`   - JWT_SECRET: ${config.jwtSecret ? '✅ Presente' : '❌ AUSENTE'}`);
-console.log(`   - DB_HANDSHAKE: ${config.dbHandshakeToken ? '✅ Presente' : '❌ AUSENTE'}`);
+// Importación diferida para evitar ciclos y asegurar que dotenv esté listo
+import('../utils/logger.js').then(({ logger }) => {
+  logger.info('⚙️  Cargando configuración del sistema...');
+  logger.debug({
+    cwd: process.cwd(),
+    jwtPresent: !!config.jwtSecret,
+    dbHandshakePresent: !!config.dbHandshakeToken
+  }, '[Config] Estado de variables críticas');
 
-if (!config.jwtSecret || !config.dbHandshakeToken || !config.dbServerUrl) {
-  const missing = [];
-  if (!config.jwtSecret) missing.push('JWT_SECRET');
-  if (!config.dbHandshakeToken) missing.push('DB_HANDSHAKE_SECRET/TOKEN');
-  if (!config.dbServerUrl) missing.push('DB_SERVER_URL');
+  if (!config.jwtSecret || !config.dbHandshakeToken || !config.dbServerUrl) {
+    const missing = [];
+    if (!config.jwtSecret) missing.push('JWT_SECRET');
+    if (!config.dbHandshakeToken) missing.push('DB_HANDSHAKE_SECRET/TOKEN');
+    if (!config.dbServerUrl) missing.push('DB_SERVER_URL');
 
-  console.error(`🛑 ERROR DE CONFIGURACIÓN: Faltan variables críticas: ${missing.join(', ')}`);
-  console.error('El servidor no puede continuar sin estas variables.');
-  // En producción, salimos. En desarrollo, podríamos dejarlo pasar pero aquí forzamos seguridad.
-  if (process.env.NODE_ENV === 'production') {
-    process.exit(1);
+    logger.error({ missing }, '🛑 ERROR DE CONFIGURACIÓN: Faltan variables críticas');
+    
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
   }
-}
+});

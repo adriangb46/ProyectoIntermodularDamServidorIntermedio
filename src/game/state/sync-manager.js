@@ -3,6 +3,7 @@ import { gameStore } from './game-store.js';
 import { Game } from '../../models/game.js';
 import { Player } from '../../models/player.js';
 import { Troop } from '../../models/troop.js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * Orquestador encargado de mantener la sincronización entre el estado
@@ -26,7 +27,7 @@ class SyncManager {
    * Si es null, la partida acaba de ser creada y aún no hay volcados.
    */
   async loadActiveGames() {
-    console.log('🔄 Sincronizando estado inicial con la DB...');
+    logger.info('[Sync] Sincronizando estado inicial con la DB...');
     try {
       const response = await dbConnector.getActiveGames();
 
@@ -51,9 +52,9 @@ class SyncManager {
         loadedCount++;
       }
 
-      console.log(`✅ Sincronización completada. ${loadedCount} partidas rehidratadas en memoria.`);
+      logger.info({ loadedCount }, '[Sync] Sincronización completada');
     } catch (error) {
-      console.error('❌ Error al sincronizar el estado inicial desde la DB:', error.message);
+      logger.error({ err: error.message }, '[Sync] Error al sincronizar estado inicial');
       // Relanzamos para detener el arranque — no arrancar con estado desincronizado
       throw error;
     }
@@ -73,10 +74,7 @@ class SyncManager {
     try {
       stateJson = JSON.parse(gameDto.latestStateJson);
     } catch (parseError) {
-      console.error(
-        `❌ latestStateJson inválido para la partida ${gameDto.id}. Usando fallback de participantes.`,
-        parseError.message
-      );
+      logger.error({ gameId: gameDto.id, err: parseError.message }, '[Sync] latestStateJson inválido. Usando fallback.');
       // JSON corrupto → caemos al fallback para no perder la partida por completo
       return this._rehydrateFromParticipants(gameDto);
     }
@@ -206,7 +204,7 @@ class SyncManager {
    * @param {number} intervalMs - Intervalo en milisegundos entre volcados.
    */
   startPeriodicSync(intervalMs) {
-    console.log(`⏱️  Iniciando volcado periódico a PostgreSQL (cada ${intervalMs}ms)`);
+    logger.info({ intervalMs }, '[Sync] Iniciando volcado periódico a PostgreSQL');
 
     setInterval(async () => {
       const games = gameStore.getAll();
@@ -220,15 +218,15 @@ class SyncManager {
           await dbConnector.dumpState(game.id, game.toJSON());
           dumpedCount++;
         } catch (error) {
-          console.error(`❌ Error al volcar el estado de la partida ${game.id}:`, error.message);
+          logger.error({ gameId: game.id, err: error.message }, '[Sync] Error al volcar estado de partida');
           errorsCount++;
         }
       }
 
       if (errorsCount > 0) {
-        console.warn(`⚠️ Volcado periódico finalizado con ${errorsCount} errores (Volcadas: ${dumpedCount}).`);
+        logger.warn({ errorsCount, dumpedCount }, '[Sync] Volcado periódico finalizado con errores');
       } else {
-        console.log(`💾 Volcado periódico exitoso: ${dumpedCount} partidas guardadas en PostgreSQL.`);
+        logger.debug({ dumpedCount }, '[Sync] Volcado periódico exitoso');
       }
     }, intervalMs);
   }
@@ -238,7 +236,7 @@ class SyncManager {
    * @param {number} intervalMs - Intervalo en milisegundos entre volcados analíticos.
    */
   startPeriodicAnalyticsSync(intervalMs) {
-    console.log(`⏱️  Iniciando volcado analítico a MongoDB (cada ${intervalMs}ms)`);
+    logger.info({ intervalMs }, '[Sync] Iniciando volcado analítico a MongoDB');
 
     setInterval(async () => {
       const games = gameStore.getAll();
@@ -253,15 +251,15 @@ class SyncManager {
           await dbConnector.publishAnalyticsSnapshot(snapshotDto);
           dumpedCount++;
         } catch (error) {
-          console.error(`❌ Error al volcar analítica de la partida ${game.id}:`, error.message);
+          logger.error({ gameId: game.id, err: error.message }, '[Sync] Error al volcar analítica');
           errorsCount++;
         }
       }
 
       if (errorsCount > 0) {
-        console.warn(`⚠️ Volcado analítico finalizado con ${errorsCount} errores (Volcadas: ${dumpedCount}).`);
+        logger.warn({ errorsCount, dumpedCount }, '[Sync] Volcado analítico finalizado con errores');
       } else {
-        console.log(`💾 Volcado analítico exitoso: ${dumpedCount} instantáneas guardadas en MongoDB.`);
+        logger.debug({ dumpedCount }, '[Sync] Volcado analítico exitoso');
       }
     }, intervalMs);
   }

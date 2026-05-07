@@ -6,6 +6,7 @@ import { buildGameView } from '../game/engine/fog-of-war.js';
 import { dbConnector } from '../db/db-connector.js';
 import { Player } from '../models/player.js';
 import { Game } from '../models/game.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Envía el estado actualizado de la partida a todos los jugadores conectados,
@@ -14,7 +15,7 @@ import { Game } from '../models/game.js';
  * @param {import('socket.io').Server} io
  * @param {import('../models/game').Game} game
  */
-const syncGameStateToAll = (io, game) => {
+export const syncGameStateToAll = (io, game) => {
   for (const player of Object.values(game.players)) {
     if (player.connectedSocketId) {
       const view = buildGameView(game, player.characterId);
@@ -37,7 +38,7 @@ export const initSocketHandler = (io, timeWheel) => {
   io.on('connection', (socket) => {
     // socket.user fue inyectado previamente por el middleware auth.js
     const { userId, username } = socket.user ?? {};
-    console.log(`[Socket] Nuevo jugador conectado: ${username ?? 'Desconocido'} (Socket ID: ${socket.id})`);
+    logger.info({ username, socketId: socket.id }, '[Socket] Nuevo jugador conectado');
 
     // -------------------------------------------------------------------------
     // Evento: join_game
@@ -55,7 +56,7 @@ export const initSocketHandler = (io, timeWheel) => {
       }
 
       if (!gameId) {
-        console.warn(`[Socket] Jugador ${username} intentó unirse a una partida sin gameId`);
+        logger.warn({ username }, '[Socket] Jugador intentó unirse a una partida sin gameId');
         socket.emit('game:error', { message: 'gameId requerido para unirse a una partida.' });
         return;
       }
@@ -111,7 +112,7 @@ export const initSocketHandler = (io, timeWheel) => {
               isHost: false
             });
             game.players[character.id] = player;
-            console.log(`[Socket] Jugador ${username} se ha unido a la partida ${gameId} con clan ${clanId}`);
+            logger.info({ username, gameId, clanId }, '[Socket] Jugador se ha unido a la partida');
           } catch (err) {
             console.error('[Socket Error] auto-join in join_game:', err);
             return socket.emit('game:error', { message: 'No se pudo unir a la partida: ' + err.message });
@@ -128,12 +129,12 @@ export const initSocketHandler = (io, timeWheel) => {
           const realRoomName = `game_${game.id}`;
           socket.join(realRoomName);
           
-          console.log(`[Socket] Jugador ${username} se ha unido a la sala: ${realRoomName}`);
+          logger.info({ username, roomName: realRoomName }, '[Socket] Jugador se ha unido a la sala');
 
           // Sincronizar estado para TODOS los participantes de la partida
           syncGameStateToAll(io, game);
         } else {
-          console.warn(`[Socket] Jugador ${username} no encontrado en la partida ${gameId}`);
+          logger.warn({ username, gameId }, '[Socket] Jugador no encontrado en la partida');
           socket.emit('game:error', { message: 'No eres participante de esta partida.' });
         }
       } else {
@@ -191,9 +192,9 @@ export const initSocketHandler = (io, timeWheel) => {
         // Enviar estado inicial sincronizado
         syncGameStateToAll(io, newGame);
 
-        console.log(`[Socket] Partida ${gameDto.id} creada por ${username}`);
+        logger.info({ gameId: gameDto.id, username }, '[Socket] Partida creada');
       } catch (err) {
-        console.error('[Socket Error] game:create:', err);
+        logger.error({ err: err.message, username }, '[Socket] Error al crear partida');
         socket.emit('game:error', { message: 'Fallo al crear partida' });
       }
     });
@@ -240,7 +241,7 @@ export const initSocketHandler = (io, timeWheel) => {
         const finalGamesList = Array.from(mergedGamesMap.values());
         socket.emit('game:list-results', finalGamesList);
       } catch (err) {
-        console.error('[Socket Error] game:list:', err);
+        logger.error({ err: err.message, userId }, '[Socket] Error al listar partidas');
         socket.emit('game:error', { message: 'Fallo al listar partidas' });
       }
     });
@@ -305,13 +306,16 @@ export const initSocketHandler = (io, timeWheel) => {
       }
 
       // 6. Notificar a TODOS los jugadores de la sala que la partida ha comenzado
-      io.to(roomName).emit('game:phase-change', {
+      io.to(roomName).emit('game:phase-changed', {
         gameId,
-        phase: 'preparation',
+        newPhase: 'preparation',
         warStartsAt: result.warStartsAt,
       });
 
-      console.log(`[Socket] Partida ${gameId} iniciada. Notificación enviada a la sala ${roomName}.`);
+      // Sincronizar estado completo
+      syncGameStateToAll(io, game);
+
+      logger.info({ gameId, username }, '[Socket] Partida iniciada');
     });
 
     // -------------------------------------------------------------------------
@@ -370,17 +374,16 @@ export const initSocketHandler = (io, timeWheel) => {
         troopCount: troopIds.length,
       });
 
+      // Sincronizar estado completo
+      syncGameStateToAll(io, game);
+
       // 7. Notificar a toda la sala que hay tropas en movimiento
       // (Fog of War: no se revela el objetivo ni qué tropas se enviaron)
       io.to(roomName).emit('game:troop-deployed', {
-        attackerCharacterId: socket.characterId,
         troopCount: troopIds.length,
       });
 
-      console.log(
-        `[Socket] Ataque lanzado por ${username} (${socket.characterId}) → ${targetCharacterId}. ` +
-        `Sala: ${roomName}.`
-      );
+      logger.info({ attacker: socket.characterId, target: targetCharacterId, count: troopIds.length }, '[Socket] Ataque lanzado');
     });
 
     // -------------------------------------------------------------------------
@@ -438,7 +441,10 @@ export const initSocketHandler = (io, timeWheel) => {
         economicCredits: player.economicCredits,
       });
 
-      console.log(`[Socket] ${username} (${socket.characterId}) encoló entrenamiento: ${troopTypeId}.`);
+      // Sincronizar estado completo
+      syncGameStateToAll(io, game);
+
+      logger.info({ username, troopTypeId }, '[Socket] Entrenamiento encolado');
     });
 
     // -------------------------------------------------------------------------
@@ -495,14 +501,17 @@ export const initSocketHandler = (io, timeWheel) => {
         researchCredits: player.researchCredits,
       });
 
-      console.log(`[Socket] ${username} (${socket.characterId}) inició investigación: ${researchId}.`);
+      // Sincronizar estado completo
+      syncGameStateToAll(io, game);
+
+      logger.info({ username, researchId }, '[Socket] Investigación iniciada');
     });
 
     // -------------------------------------------------------------------------
     // Evento: disconnect
     // -------------------------------------------------------------------------
     socket.on('disconnect', (reason) => {
-      console.log(`[Socket] Jugador desconectado: ${username ?? 'Desconocido'} (Motivo: ${reason})`);
+      logger.info({ username, reason }, '[Socket] Jugador desconectado');
     });
   });
 };
