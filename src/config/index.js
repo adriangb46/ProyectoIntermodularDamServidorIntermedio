@@ -52,6 +52,14 @@ export const config = Object.freeze({
   minioSecretKey: process.env.MINIO_SECRET_KEY,
   minioBucketAvatars: process.env.MINIO_BUCKET_AVATARS || 'avatars',
   minioPublicBaseUrl: process.env.MINIO_PUBLIC_BASE_URL || 'http://localhost:9000/avatars',
+  
+  // --- Rate Limiting ---
+  rateLimitLoginWindowMs: Number(process.env.RATE_LIMIT_LOGIN_WINDOW_MS) || 900_000, // 15 min
+  rateLimitLoginMax: Number(process.env.RATE_LIMIT_LOGIN_MAX) || 20,
+  rateLimitRegisterWindowMs: Number(process.env.RATE_LIMIT_REGISTER_WINDOW_MS) || 3_600_000, // 60 min
+  rateLimitRegisterMax: Number(process.env.RATE_LIMIT_REGISTER_MAX) || 10,
+  rateLimitJoinGameWindowMs: Number(process.env.RATE_LIMIT_JOIN_GAME_WINDOW_MS) || 60_000, // 1 min
+  rateLimitJoinGameMax: Number(process.env.RATE_LIMIT_JOIN_GAME_MAX) || 40,
 });
 
 console.log('⚙️  Cargando configuración del sistema...');

@@ -30,6 +30,21 @@ class GameStore {
   }
 
   /**
+   * Busca una partida por el código corto (primeros 6 caracteres del UUID).
+   * @param {string} shortId - Código de 6 caracteres.
+   * @returns {import('../../models/game').Game | undefined}
+   */
+  getGameByShortId(shortId) {
+    if (!shortId) return undefined;
+    if (shortId.length > 6) return this.getGame(shortId);
+    
+    const normalizedShortId = shortId.toUpperCase();
+    return Array.from(this.games.values()).find(g => 
+      g.id.substring(0, 6).toUpperCase() === normalizedShortId
+    );
+  }
+
+  /**
    * Elimina una partida de la memoria.
    * Se debe llamar cuando una partida finaliza o es purgada.
    * @param {string} id 

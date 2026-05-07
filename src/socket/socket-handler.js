@@ -60,25 +60,42 @@ export const initSocketHandler = (io, timeWheel) => {
         return;
       }
 
-      const roomName = `game_${gameId}`;
-      socket.join(roomName);
+      // No unirse a la sala todavía, esperar a encontrar la partida para usar el UUID completo
+      // const roomName = `game_${gameId}`;
+      // socket.join(roomName);
 
       // Registrar el socketId en el modelo del jugador para permitir emisiones individuales (Fog of War)
-      const game = gameStore.getGame(gameId);
+      let game = gameStore.getGame(gameId);
+      if (!game) {
+        // Intentar buscar por código corto si no se encontró por UUID completo
+        game = gameStore.getGameByShortId(gameId);
+      }
+
       if (game) {
         // Encontrar al personaje vinculado a este usuario en esta partida
         let player = Object.values(game.players).find(p => p.userId === userId);
         
-        // Si el jugador no está en la partida pero envió un clanId -> Intentamos unirlo
+        // Si el jugador no está en la partida pero envió un clanId (que puede ser el arquetipo) -> Intentamos unirlo
         if (!player && clanId) {
           try {
+            // Mapeo de arquetipo (FURY, DIVINE...) a clanId real (berserkers, valkirias...) si es necesario
+            const archetypeToClan = {
+              'FURY': 'berserkers',
+              'DIVINE': 'valkirias',
+              'IRON': 'jarls',
+              'SHADOW': 'sombras',
+              'FROST': 'frost_guard',
+              'STORM': 'storm_bringers'
+            };
+            const realClanId = archetypeToClan[clanId.toUpperCase()] || clanId.toLowerCase();
+
             // 1. Obtener/Crear personaje
             const charsResponse = await dbConnector.getCharactersByUser(userId);
-            const characters = charsResponse?.data || charactersResponse || [];
-            let character = characters.find(c => c.clanId === clanId);
+            const characters = charsResponse?.data || charsResponse || [];
+            let character = characters.find(c => c.clanId === realClanId);
             if (!character) {
               const newCharResponse = await dbConnector.createCharacter({
-                userId, clanId, name: `${username} of ${clanId}`
+                userId, clanId: realClanId, name: `${username} of ${realClanId}`
               });
               character = newCharResponse?.data || newCharResponse;
             }
@@ -89,7 +106,7 @@ export const initSocketHandler = (io, timeWheel) => {
             // 3. Añadir a memoria
             player = new Player({
               characterId: character.id,
-              userId, username, clanId,
+              userId, username, clanId: realClanId,
               capitalHealth: 3000, // Salud base MVP
               isHost: false
             });
@@ -107,7 +124,11 @@ export const initSocketHandler = (io, timeWheel) => {
           player.username = username; // Asegurar que el username está presente para el Fog of War
           player.connectedSocketId = socket.id;
           
-          console.log(`[Socket] Jugador ${username} se ha unido a la sala: ${roomName}`);
+          // Unirse a la sala usando el ID real de la partida (UUID completo)
+          const realRoomName = `game_${game.id}`;
+          socket.join(realRoomName);
+          
+          console.log(`[Socket] Jugador ${username} se ha unido a la sala: ${realRoomName}`);
 
           // Sincronizar estado para TODOS los participantes de la partida
           syncGameStateToAll(io, game);
@@ -153,7 +174,7 @@ export const initSocketHandler = (io, timeWheel) => {
         const hostPlayer = new Player({
           characterId: character.id,
           userId, username, clanId,
-          capitalHealth: 100,
+          capitalHealth: 3000,
           isHost: true
         });
         newGame.players[character.id] = hostPlayer;
@@ -178,13 +199,46 @@ export const initSocketHandler = (io, timeWheel) => {
     });
 
     // -------------------------------------------------------------------------
-    // Evento: game:list
-    // Lista las partidas del usuario.
-    // -------------------------------------------------------------------------
     socket.on('game:list', async () => {
       try {
-        const response = await dbConnector.getGamesByUser(userId);
-        socket.emit('game:list-results', response?.data || response || []);
+        // 1. Obtener partidas de la base de datos (historial y persistencia)
+        const dbResponse = await dbConnector.getGamesByUser(userId);
+        const dbGames = dbResponse?.data || dbResponse || [];
+
+        // 2. Obtener partidas vivas en memoria del Middle Server
+        // Filtramos las partidas donde el usuario actual es un participante
+        const memoryGames = gameStore.getAll()
+          .filter(game => Object.values(game.players).some(p => p.userId === userId))
+          .map(game => {
+            const player = Object.values(game.players).find(p => p.userId === userId);
+            return {
+              id: game.id,
+              status: game.phase.toUpperCase(),
+              maxPlayers: game.maxPlayers,
+              createdAt: game.startedAt ? new Date(game.startedAt).toISOString() : new Date().toISOString(),
+              participants: Object.values(game.players).map(p => ({
+                characterId: p.characterId,
+                userId: p.userId,
+                username: p.username,
+                clanId: p.clanId, // <--- Incluimos el clanId para que el lobby lo sepa
+                isHost: p.isHost
+              })),
+              // Proporcionamos el estado vivo para que el lobby sea 100% fiel a la memoria
+              latestStateJson: JSON.stringify(game.toJSON())
+            };
+          });
+
+        // 3. Fusionar: las partidas en memoria tienen prioridad absoluta sobre la DB
+        const mergedGamesMap = new Map();
+        
+        // Primero metemos las de DB
+        dbGames.forEach(g => mergedGamesMap.set(g.id, g));
+        
+        // Sobrescribimos con las de memoria (que están más actualizadas)
+        memoryGames.forEach(g => mergedGamesMap.set(g.id, g));
+
+        const finalGamesList = Array.from(mergedGamesMap.values());
+        socket.emit('game:list-results', finalGamesList);
       } catch (err) {
         console.error('[Socket Error] game:list:', err);
         socket.emit('game:error', { message: 'Fallo al listar partidas' });
@@ -197,7 +251,11 @@ export const initSocketHandler = (io, timeWheel) => {
     // -------------------------------------------------------------------------
     socket.on('game:availability', (payload) => {
       const { gameId } = payload || {};
-      const game = gameStore.getGame(gameId);
+      let game = gameStore.getGame(gameId);
+      if (!game) {
+        game = gameStore.getGameByShortId(gameId);
+      }
+
       if (!game) return socket.emit('game:error', { message: 'Partida no encontrada' });
 
       const takenClans = Object.values(game.players).map(p => p.clanId);
