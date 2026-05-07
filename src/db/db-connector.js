@@ -208,6 +208,13 @@ class DbConnector {
     });
   }
 
+  async joinGame(gameId, characterId) {
+    return this.fetchWithAuth(`/internal/games/${gameId}/join`, {
+      method: 'POST',
+      body: JSON.stringify(characterId),
+    });
+  }
+
   async publishAnalyticsSnapshot(snapshotDto) {
     return this.fetchWithAuth('/internal/analytics/snapshots', {
       method: 'POST',

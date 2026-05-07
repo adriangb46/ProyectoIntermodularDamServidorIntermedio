@@ -25,7 +25,7 @@ export const initSocketHandler = (io, timeWheel) => {
     // El jugador se une a la sala de una partida para recibir sus eventos.
     // -------------------------------------------------------------------------
     socket.on('join_game', async (payload) => {
-      const { gameId } = payload || {};
+      const { gameId, clanId } = payload || {};
 
       // Rate limiting por IP para el evento join_game (security.md §3)
       const socketIp = socket.handshake.address;
@@ -43,20 +43,53 @@ export const initSocketHandler = (io, timeWheel) => {
 
       const roomName = `game_${gameId}`;
       socket.join(roomName);
-      console.log(`[Socket] Jugador ${username} se ha unido a la sala: ${roomName}`);
 
       // Registrar el socketId en el modelo del jugador para permitir emisiones individuales (Fog of War)
       const game = gameStore.getGame(gameId);
       if (game) {
         // Encontrar al personaje vinculado a este usuario en esta partida
-        const player = Object.values(game.players).find(p => p.userId === userId);
+        let player = Object.values(game.players).find(p => p.userId === userId);
         
+        // Si el jugador no está en la partida pero envió un clanId -> Intentamos unirlo
+        if (!player && clanId) {
+          try {
+            // 1. Obtener/Crear personaje
+            const charsResponse = await dbConnector.getCharactersByUser(userId);
+            const characters = charsResponse?.data || charactersResponse || [];
+            let character = characters.find(c => c.clanId === clanId);
+            if (!character) {
+              const newCharResponse = await dbConnector.createCharacter({
+                userId, clanId, name: `${username} of ${clanId}`
+              });
+              character = newCharResponse?.data || newCharResponse;
+            }
+
+            // 2. Unirse en DB
+            await dbConnector.joinGame(gameId, character.id);
+
+            // 3. Añadir a memoria
+            player = new Player({
+              characterId: character.id,
+              userId, username, clanId,
+              capitalHealth: 3000, // Salud base MVP
+              isHost: false
+            });
+            game.players[character.id] = player;
+            console.log(`[Socket] Jugador ${username} se ha unido a la partida ${gameId} con clan ${clanId}`);
+          } catch (err) {
+            console.error('[Socket Error] auto-join in join_game:', err);
+            return socket.emit('game:error', { message: 'No se pudo unir a la partida: ' + err.message });
+          }
+        }
+
         if (player) {
           const charId = player.characterId;
           socket.characterId = charId; // Lo guardamos en el socket para otros eventos
           player.username = username; // Asegurar que el username está presente para el Fog of War
           player.connectedSocketId = socket.id;
           
+          console.log(`[Socket] Jugador ${username} se ha unido a la sala: ${roomName}`);
+
           // Emitir estado inicial filtrado por Fog of War: el jugador solo ve lo que le corresponde
           const view = buildGameView(game, charId);
           socket.emit('game:state-sync', { ...view, myCharacterId: charId });
@@ -64,6 +97,8 @@ export const initSocketHandler = (io, timeWheel) => {
           console.warn(`[Socket] Jugador ${username} no encontrado en la partida ${gameId}`);
           socket.emit('game:error', { message: 'No eres participante de esta partida.' });
         }
+      } else {
+        socket.emit('game:error', { message: 'Partida no encontrada en memoria.' });
       }
     });
     
