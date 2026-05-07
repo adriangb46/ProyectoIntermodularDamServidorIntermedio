@@ -46,8 +46,18 @@ app.use('/api', httpRouter);
 
 // Manejador de errores global de Express
 app.use((err, req, res, next) => {
-  console.error('[HTTP Error]', err.stack);
-  res.status(500).json({ message: "Error interno del servidor" });
+  const status = err.status || 500;
+  
+  if (status === 500) {
+    console.error('[HTTP Error 500]', err.stack);
+  } else {
+    console.warn(`[HTTP Error ${status}] ${err.message}`);
+  }
+
+  res.status(status).json({ 
+    message: status === 500 ? "Error interno del servidor" : err.message,
+    status
+  });
 });
 
 // 2. Inicialización del Servidor y WebSockets

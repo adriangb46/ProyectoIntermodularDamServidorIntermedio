@@ -23,7 +23,7 @@ for (const envPath of envPaths) {
 export const config = Object.freeze({
   port: Number(process.env.PORT) || 3000,
   jwtSecret: process.env.JWT_SECRET || process.env.MIDDLE_JWT_SECRET,
-  dbServerUrl: process.env.DB_SERVER_URL,
+  dbServerUrl: process.env.DB_SERVER_URL || 'http://localhost:8080',
   dbHandshakeToken: process.env.DB_HANDSHAKE_SECRET || process.env.DB_HANDSHAKE_TOKEN,
 
   // --- Configuración del Time Wheel ---

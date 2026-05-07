@@ -3,6 +3,9 @@ import { gameStore } from '../game/state/game-store.js';
 import { startGame, launchAttack, trainTroop, startResearch } from '../game/actions/game-actions.js';
 import { config } from '../config/index.js';
 import { buildGameView } from '../game/engine/fog-of-war.js';
+import { dbConnector } from '../db/db-connector.js';
+import { Player } from '../models/player.js';
+import { Game } from '../models/game.js';
 
 /**
  * Inicializa los manejadores de eventos principales de Socket.IO.
@@ -62,6 +65,91 @@ export const initSocketHandler = (io, timeWheel) => {
           socket.emit('game:error', { message: 'No eres participante de esta partida.' });
         }
       }
+    });
+    
+    // -------------------------------------------------------------------------
+    // Evento: game:create
+    // Crea una nueva partida y se une a ella.
+    // -------------------------------------------------------------------------
+    socket.on('game:create', async (payload) => {
+      try {
+        const { clanId } = payload || {};
+        if (!clanId) return socket.emit('game:error', { message: 'clanId requerido' });
+
+        // 1. Obtener/Crear personaje en DB Server
+        const charsResponse = await dbConnector.getCharactersByUser(userId);
+        const characters = charsResponse?.data || charsResponse || [];
+        let character = characters.find(c => c.clanId === clanId);
+
+        if (!character) {
+          const newCharResponse = await dbConnector.createCharacter({
+            userId, clanId, name: `${username} of ${clanId}`
+          });
+          character = newCharResponse?.data || newCharResponse;
+        }
+
+        // 2. Crear partida en DB Server
+        const gameCreateResponse = await dbConnector.createGame({
+          maxPlayers: 6,
+          characterIds: [character.id]
+        });
+        const gameDto = gameCreateResponse?.data || gameCreateResponse;
+
+        // 3. Rehidratar en memoria
+        const newGame = new Game({ id: gameDto.id, maxPlayers: gameDto.maxPlayers });
+        const hostPlayer = new Player({
+          characterId: character.id,
+          userId, username, clanId,
+          capitalHealth: 100,
+          isHost: true
+        });
+        newGame.players[character.id] = hostPlayer;
+        gameStore.addGame(newGame);
+
+        // 4. Unirse a la sala y confirmar
+        const roomName = `game_${gameDto.id}`;
+        socket.join(roomName);
+        socket.characterId = character.id;
+        hostPlayer.connectedSocketId = socket.id;
+
+        socket.emit('game:created', gameDto);
+        
+        // Enviar estado inicial
+        const view = buildGameView(newGame, character.id);
+        socket.emit('game:state-sync', { ...view, myCharacterId: character.id });
+
+        console.log(`[Socket] Partida ${gameDto.id} creada por ${username}`);
+      } catch (err) {
+        console.error('[Socket Error] game:create:', err);
+        socket.emit('game:error', { message: 'Fallo al crear partida' });
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // Evento: game:list
+    // Lista las partidas del usuario.
+    // -------------------------------------------------------------------------
+    socket.on('game:list', async () => {
+      try {
+        const response = await dbConnector.getGamesByUser(userId);
+        socket.emit('game:list-results', response?.data || response || []);
+      } catch (err) {
+        console.error('[Socket Error] game:list:', err);
+        socket.emit('game:error', { message: 'Fallo al listar partidas' });
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // Evento: game:availability
+    // Consulta clanes ocupados en una partida.
+    // -------------------------------------------------------------------------
+    socket.on('game:availability', (payload) => {
+      const { gameId } = payload || {};
+      const game = gameStore.getGame(gameId);
+      if (!game) return socket.emit('game:error', { message: 'Partida no encontrada' });
+
+      const takenClans = Object.values(game.players).map(p => p.clanId);
+      socket.emit('game:availability-results', { gameId, takenClans });
     });
 
     // -------------------------------------------------------------------------
