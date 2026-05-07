@@ -45,6 +45,13 @@ export const config = Object.freeze({
 
   // --- Configuración de Redis ---
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+
+  // --- Configuración de MinIO (S3) ---
+  minioEndpoint: process.env.MINIO_ENDPOINT || 'http://localhost:9000',
+  minioAccessKey: process.env.MINIO_ACCESS_KEY,
+  minioSecretKey: process.env.MINIO_SECRET_KEY,
+  minioBucketAvatars: process.env.MINIO_BUCKET_AVATARS || 'avatars',
+  minioPublicBaseUrl: process.env.MINIO_PUBLIC_BASE_URL || 'http://localhost:9000/avatars',
 });
 
 console.log('⚙️  Cargando configuración del sistema...');

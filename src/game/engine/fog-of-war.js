@@ -64,6 +64,7 @@ export function buildGameView(game, viewerCharacterId) {
 function _buildSelfView(player) {
   return {
     characterId:       player.characterId,
+    username:          player.username,
     clanId:            player.clanId,
     isHost:            player.isHost,
     capitalHealth:     player.capitalHealth,
@@ -96,6 +97,7 @@ function _buildRivalView(player) {
 
   return {
     characterId:   player.characterId,
+    username:      player.username,
     clanId:        player.clanId,
     isHost:        player.isHost,
     capitalHealth: player.capitalHealth,

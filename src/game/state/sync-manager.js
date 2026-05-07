@@ -153,6 +153,7 @@ class SyncManager {
     const player = new Player({
       characterId: playerData.characterId,
       userId: playerData.userId,
+      username: playerData.username,
       clanId: playerData.clanId,
       capitalHealth: playerData.capitalHealth,
       isHost: !!playerData.isHost,

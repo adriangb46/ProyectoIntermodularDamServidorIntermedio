@@ -14,7 +14,7 @@ import { buildGameView } from '../game/engine/fog-of-war.js';
 export const initSocketHandler = (io, timeWheel) => {
   io.on('connection', (socket) => {
     // socket.user fue inyectado previamente por el middleware auth.js
-    const { characterId, username } = socket.user ?? {};
+    const { userId, username } = socket.user ?? {};
     console.log(`[Socket] Nuevo jugador conectado: ${username ?? 'Desconocido'} (Socket ID: ${socket.id})`);
 
     // -------------------------------------------------------------------------
@@ -45,12 +45,22 @@ export const initSocketHandler = (io, timeWheel) => {
       // Registrar el socketId en el modelo del jugador para permitir emisiones individuales (Fog of War)
       const game = gameStore.getGame(gameId);
       if (game) {
-        const player = game.getPlayer(characterId);
+        // Encontrar al personaje vinculado a este usuario en esta partida
+        const player = Object.values(game.players).find(p => p.userId === userId);
+        
         if (player) {
+          const charId = player.characterId;
+          socket.characterId = charId; // Lo guardamos en el socket para otros eventos
+          player.username = username; // Asegurar que el username está presente para el Fog of War
           player.connectedSocketId = socket.id;
+          
+          // Emitir estado inicial filtrado por Fog of War: el jugador solo ve lo que le corresponde
+          const view = buildGameView(game, charId);
+          socket.emit('game:state-sync', { ...view, myCharacterId: charId });
+        } else {
+          console.warn(`[Socket] Jugador ${username} no encontrado en la partida ${gameId}`);
+          socket.emit('game:error', { message: 'No eres participante de esta partida.' });
         }
-        // Emitir estado inicial filtrado por Fog of War: el jugador solo ve lo que le corresponde
-        socket.emit('game:state-sync', buildGameView(game, characterId));
       }
     });
 
@@ -82,14 +92,14 @@ export const initSocketHandler = (io, timeWheel) => {
         return;
       }
 
-      // 4. characterId viene del JWT (inyectado en socket.user por el middleware auth.js)
-      if (!characterId) {
+      // 4. socket.characterId viene del JWT (inyectado en socket.user por el middleware auth.js)
+      if (!socket.characterId) {
         socket.emit('game:error', { message: 'No se pudo identificar tu personaje. Vuelve a conectarte.' });
         return;
       }
 
       // 5. Delegar en la lógica de negocio (game-actions.js)
-      const result = startGame(game, characterId, timeWheel, config.preparationDurationMs);
+      const result = startGame(game, socket.characterId, timeWheel, config.preparationDurationMs);
 
       if (!result.success) {
         socket.emit('game:error', { message: result.message });
@@ -142,14 +152,14 @@ export const initSocketHandler = (io, timeWheel) => {
         return;
       }
 
-      // 4. characterId proviene del JWT, nunca del payload del cliente
-      if (!characterId) {
+      // 4. socket.characterId proviene del JWT, nunca del payload del cliente
+      if (!socket.characterId) {
         socket.emit('game:error', { message: 'No se pudo identificar tu personaje. Vuelve a conectarte.' });
         return;
       }
 
       // 5. Delegar en la lógica de negocio
-      const result = launchAttack(game, characterId, targetCharacterId, troopIds, timeWheel);
+      const result = launchAttack(game, socket.characterId, targetCharacterId, troopIds, timeWheel);
 
       if (!result.success) {
         socket.emit('game:error', { message: result.message });
@@ -165,12 +175,12 @@ export const initSocketHandler = (io, timeWheel) => {
       // 7. Notificar a toda la sala que hay tropas en movimiento
       // (Fog of War: no se revela el objetivo ni qué tropas se enviaron)
       io.to(roomName).emit('game:troop-deployed', {
-        attackerCharacterId: characterId,
+        attackerCharacterId: socket.characterId,
         troopCount: troopIds.length,
       });
 
       console.log(
-        `[Socket] Ataque lanzado por ${username} (${characterId}) → ${targetCharacterId}. ` +
+        `[Socket] Ataque lanzado por ${username} (${socket.characterId}) → ${targetCharacterId}. ` +
         `Sala: ${roomName}.`
       );
     });
@@ -207,14 +217,14 @@ export const initSocketHandler = (io, timeWheel) => {
         return;
       }
 
-      // 4. characterId proviene del JWT, nunca del payload del cliente
-      if (!characterId) {
+      // 4. socket.characterId proviene del JWT, nunca del payload del cliente
+      if (!socket.characterId) {
         socket.emit('game:error', { message: 'No se pudo identificar tu personaje. Vuelve a conectarte.' });
         return;
       }
 
       // 5. Delegar en la lógica de negocio
-      const result = trainTroop(game, characterId, troopTypeId, timeWheel);
+      const result = trainTroop(game, socket.characterId, troopTypeId, timeWheel);
 
       if (!result.success) {
         socket.emit('game:error', { message: result.message });
@@ -222,7 +232,7 @@ export const initSocketHandler = (io, timeWheel) => {
       }
 
       // 6. Confirmar al jugador: cola de entrenamiento actualizada y créditos descontados
-      const player = game.getPlayer(characterId);
+      const player = game.getPlayer(socket.characterId);
       socket.emit('player:train-queued', {
         troopTypeId,
         completesAt: result.completesAt,
@@ -230,7 +240,7 @@ export const initSocketHandler = (io, timeWheel) => {
         economicCredits: player.economicCredits,
       });
 
-      console.log(`[Socket] ${username} (${characterId}) encoló entrenamiento: ${troopTypeId}.`);
+      console.log(`[Socket] ${username} (${socket.characterId}) encoló entrenamiento: ${troopTypeId}.`);
     });
 
     // -------------------------------------------------------------------------
@@ -265,14 +275,14 @@ export const initSocketHandler = (io, timeWheel) => {
         return;
       }
 
-      // 4. characterId proviene del JWT, nunca del payload del cliente
-      if (!characterId) {
+      // 4. socket.characterId proviene del JWT, nunca del payload del cliente
+      if (!socket.characterId) {
         socket.emit('game:error', { message: 'No se pudo identificar tu personaje. Vuelve a conectarte.' });
         return;
       }
 
       // 5. Delegar en la lógica de negocio
-      const result = startResearch(game, characterId, researchId, timeWheel);
+      const result = startResearch(game, socket.characterId, researchId, timeWheel);
 
       if (!result.success) {
         socket.emit('game:error', { message: result.message });
@@ -280,14 +290,14 @@ export const initSocketHandler = (io, timeWheel) => {
       }
 
       // 6. Confirmar al jugador: investigación en curso y créditos descontados
-      const player = game.getPlayer(characterId);
+      const player = game.getPlayer(socket.characterId);
       socket.emit('player:research-started', {
         researchId,
         researchInProgress: player.researchInProgress,
         researchCredits: player.researchCredits,
       });
 
-      console.log(`[Socket] ${username} (${characterId}) inició investigación: ${researchId}.`);
+      console.log(`[Socket] ${username} (${socket.characterId}) inició investigación: ${researchId}.`);
     });
 
     // -------------------------------------------------------------------------

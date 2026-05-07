@@ -102,6 +102,7 @@ export const createGameController = async (req, res, next) => {
     const hostPlayer = new Player({
       characterId: character.id,
       userId: userId,
+      username: username,
       clanId: clanId,
       capitalHealth: 100
     });

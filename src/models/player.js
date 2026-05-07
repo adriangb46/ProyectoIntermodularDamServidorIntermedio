@@ -7,15 +7,17 @@ export class Player {
    * @param {Object}  data
    * @param {string}  data.characterId  - ID del personaje.
    * @param {string}  data.userId       - ID del usuario.
+   * @param {string}  data.username     - Nombre del usuario.
    * @param {string}  data.clanId       - ID del clan (ej: 'berserkers').
    * @param {number}  data.capitalHealth - Salud inicial de la capital.
    * @param {boolean} [data.isHost]     - Indica si este jugador es el creador/host de la partida.
    */
-  constructor({ characterId, userId, clanId, capitalHealth, isHost = false }) {
+  constructor({ characterId, userId, username, clanId, capitalHealth, isHost = false }) {
     this.characterId = characterId;
     // Marca si este jugador es el host (único autorizado a iniciar la partida)
     this.isHost = isHost;
     this.userId = userId;
+    this.username = username;
     this.clanId = clanId;
     
     // Recursos iniciales (se ajustan según la fase de preparación)
@@ -75,6 +77,7 @@ export class Player {
     return {
       characterId: this.characterId,
       userId: this.userId,
+      username: this.username,
       clanId: this.clanId,
       isHost: this.isHost,
       economicCredits: this.economicCredits,
