@@ -564,6 +564,22 @@ export const initSocketHandler = (io, timeWheel) => {
     });
 
     // -------------------------------------------------------------------------
+    // Evento: game:send-log
+    // Retransmite un log generado por un cliente a todos los jugadores de la sala.
+    // -------------------------------------------------------------------------
+    socket.on('game:send-log', (payload) => {
+      const { gameId, logEntry } = payload || {};
+      
+      if (!gameId || !logEntry) return;
+
+      const roomName = `game_${gameId}`;
+      if (!socket.rooms.has(roomName)) return; // Validar que el socket pertenece a la sala
+
+      // Retransmitir a toda la sala
+      io.to(roomName).emit('game:new-log', logEntry);
+    });
+
+    // -------------------------------------------------------------------------
     // Evento: disconnect
     // -------------------------------------------------------------------------
     socket.on('disconnect', (reason) => {
