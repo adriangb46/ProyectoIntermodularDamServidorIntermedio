@@ -77,7 +77,7 @@ export class Game {
     return {
       id: this.id,
       maxPlayers: this.maxPlayers,
-      phase: this.phase,
+      phase: this.phase.toUpperCase(),
       startedAt: this.startedAt,
       players: playersSerialized,
       eventQueue: this.eventQueue

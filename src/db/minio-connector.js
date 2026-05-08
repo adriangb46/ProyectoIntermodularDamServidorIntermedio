@@ -1,5 +1,6 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { config } from '../config/index.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Conector singleton para MinIO (compatible con API S3).
@@ -42,7 +43,7 @@ class MinioConnector {
     });
 
     await this.client.send(command);
-    console.log(`[MinIO] Avatar subido correctamente: ${key}`);
+    logger.info({ key }, '[MinIO] Avatar subido correctamente');
 
     return this.getAvatarUrl(uuid);
   }

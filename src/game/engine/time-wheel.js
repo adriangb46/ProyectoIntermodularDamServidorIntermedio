@@ -6,6 +6,8 @@ import { resolveBattle } from './combat-resolver.js';
 import { gameData } from '../../config/game-data-loader.js';
 import { buildGameView } from './fog-of-war.js';
 import { logger } from '../../utils/logger.js';
+import { dbConnector } from '../../db/db-connector.js';
+import { syncManager } from '../state/sync-manager.js';
 
 /**
  * Motor de tiempo centralizado del Middle Server.
@@ -20,11 +22,11 @@ import { logger } from '../../utils/logger.js';
  *
  * Tipos de evento gestionados (sección 10 del proyect_arquitecture.md):
  *   PHASE_TRANSITION_WAR       → Preparación → Guerra (implementado)
- *   RESOURCE_TICK              → Distribución de créditos económicos (TODO: Dev B)
- *   TROOP_TRAINING_COMPLETE    → Tropa añadida al capital (TODO: Dev B)
- *   TROOP_ARRIVAL              → Resolución de combate + comprobación de victoria (Sprint 3 + Sprint 4)
- *   DB_DUMP_POSTGRES           → Volcado a PostgreSQL (TODO: Dev B DB connector)
- *   DB_DUMP_MONGODB            → Volcado a MongoDB (TODO: Dev B DB connector)
+ *   RESOURCE_TICK              → Distribución de créditos económicos
+ *   TROOP_TRAINING_COMPLETE    → Tropa añadida al capital
+ *   TROOP_ARRIVAL              → Resolución de combate + comprobación de victoria
+ *   DB_DUMP_POSTGRES           → Volcado a PostgreSQL
+ *   DB_DUMP_MONGODB            → Volcado a MongoDB
  */
 export class TimeWheel {
   /**
@@ -51,7 +53,7 @@ export class TimeWheel {
    */
   start() {
     if (this._interval) {
-      console.warn('[TimeWheel] Ya estaba activo. Se ignora la llamada a start().');
+      logger.warn('[TimeWheel] Ya estaba activo. Se ignora la llamada a start().');
       return;
     }
     this._interval = setInterval(() => this._processTick(), this.config.timeWheelTickMs);
@@ -85,7 +87,7 @@ export class TimeWheel {
   scheduleEvent(gameId, event) {
     const game = this.gameStore.getGame(gameId);
     if (!game) {
-      console.warn(`[TimeWheel] scheduleEvent: partida ${gameId} no encontrada en GameStore.`);
+      logger.warn({ gameId }, '[TimeWheel] scheduleEvent: partida no encontrada en GameStore.');
       return;
     }
 
@@ -110,6 +112,15 @@ export class TimeWheel {
     const now = Date.now();
 
     for (const game of this.gameStore.getAll()) {
+      // Programar los volcados iniciales si la partida acaba de ser cargada/creada
+      if (!game.hasInitialDumpsScheduled) {
+        // Añadimos un pequeño jitter aleatorio para que no todas las partidas vuelquen a la vez si hay muchas
+        const jitter = Math.floor(Math.random() * 5000);
+        this._rescheduleRecurring(game, 'DB_DUMP_POSTGRES', this.config.postgresDumpIntervalMs + jitter, now);
+        this._rescheduleRecurring(game, 'DB_DUMP_MONGODB', this.config.mongoDbDumpIntervalMs + jitter, now);
+        game.hasInitialDumpsScheduled = true;
+      }
+
       // Procesamos eventos mientras el primero de la cola ya esté vencido
       while (game.eventQueue.length > 0 && game.eventQueue[0].executeAt <= now) {
         const event = game.eventQueue.shift();
@@ -164,21 +175,28 @@ export class TimeWheel {
         break;
 
       case 'DB_DUMP_POSTGRES':
-        // TODO (Dev B): Serializar game.toJSON() y enviar al DB Server via HTTP.
-        // Tras el volcado, re-encolar el siguiente DB_DUMP_POSTGRES.
-        logger.debug({ gameId: game.id }, '[TimeWheel] DB_DUMP_POSTGRES pendiente de DB connector');
+        dbConnector.dumpState(game.id, game.toJSON()).then(() => {
+          logger.debug({ gameId: game.id }, '[TimeWheel] DB_DUMP_POSTGRES completado');
+        }).catch(err => {
+          logger.error({ gameId: game.id, err: err.message }, '[TimeWheel] Error al volcar estado de partida');
+        });
         this._rescheduleRecurring(game, 'DB_DUMP_POSTGRES', this.config.postgresDumpIntervalMs, now);
         break;
 
       case 'DB_DUMP_MONGODB':
-        // TODO (Dev B): Enviar snapshot analítico al DB Server via HTTP.
-        // Tras el volcado, re-encolar el siguiente DB_DUMP_MONGODB.
-        logger.debug({ gameId: game.id }, '[TimeWheel] DB_DUMP_MONGODB pendiente de DB connector');
-        this._rescheduleRecurring(game, 'DB_DUMP_MONGODB', this.config.mongoDbDumpIntervalMs, now);
+        {
+          const snapshotDto = syncManager.mapGameToAnalyticsSnapshot(game);
+          dbConnector.publishAnalyticsSnapshot(snapshotDto).then(() => {
+            logger.debug({ gameId: game.id }, '[TimeWheel] DB_DUMP_MONGODB completado');
+          }).catch(err => {
+            logger.error({ gameId: game.id, err: err.message }, '[TimeWheel] Error al volcar analítica');
+          });
+          this._rescheduleRecurring(game, 'DB_DUMP_MONGODB', this.config.mongoDbDumpIntervalMs, now);
+        }
         break;
 
       default:
-        console.warn(`[TimeWheel] Tipo de evento desconocido: '${event.type}' (partida ${game.id}).`);
+        logger.warn({ type: event.type, gameId: game.id }, '[TimeWheel] Tipo de evento desconocido');
     }
   }
 
@@ -264,7 +282,7 @@ export class TimeWheel {
     // Notificar a todos los clientes conectados en la sala de la partida
     this.io.to(`game_${game.id}`).emit('game:phase-changed', {
       gameId: game.id,
-      newPhase: 'war',
+      newPhase: 'WAR',
     });
 
     // Programar el primer tick de recursos (intervalo aleatorio 30-60s según arquitectura)
@@ -305,7 +323,7 @@ export class TimeWheel {
 
     this.io.to(`game_${game.id}`).emit('game:phase-changed', {
       gameId: game.id,
-      newPhase: 'end',
+      newPhase: 'END',
     });
   }
 
@@ -417,14 +435,14 @@ export class TimeWheel {
     // Buscar al jugador atacante
     const attacker = game.getPlayer(attackerCharacterId);
     if (!attacker) {
-      console.warn(`[TimeWheel] _handleTroopArrival: atacante ${attackerCharacterId} no existe (partida ${game.id}).`);
+      logger.warn({ attackerCharacterId, gameId: game.id }, '[TimeWheel] _handleTroopArrival: atacante no existe');
       return;
     }
 
     // Buscar la tropa por su ID único
     const troop = attacker.troops.find(t => t.id === troopId);
     if (!troop) {
-      console.warn(`[TimeWheel] _handleTroopArrival: tropa ${troopId} no encontrada para atacante ${attackerCharacterId}.`);
+      logger.warn({ troopId, attackerCharacterId }, '[TimeWheel] _handleTroopArrival: tropa no encontrada');
       return;
     }
 

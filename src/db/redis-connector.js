@@ -1,5 +1,6 @@
 import { createClient } from 'redis';
 import { config } from '../config/index.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Conector de Redis para la Middle Server.
@@ -11,8 +12,8 @@ class RedisConnector {
       url: config.redisUrl
     });
 
-    this.client.on('error', (err) => console.error('[Redis] Error en el cliente:', err));
-    this.client.on('connect', () => console.log('[Redis] Conectado correctamente.'));
+    this.client.on('error', (err) => logger.error({ err }, '[Redis] Error en el cliente'));
+    this.client.on('connect', () => logger.info('[Redis] Conectado correctamente.'));
   }
 
   /**
@@ -39,9 +40,9 @@ class RedisConnector {
       await this.client.set(key, '1', {
         EX: ttlSeconds
       });
-      console.log(`[Redis] JTI blacklisted: ${jti} (TTL: ${ttlSeconds}s)`);
+      logger.info({ jti, ttlSeconds }, '[Redis] JTI blacklisted');
     } catch (error) {
-      console.error(`[Redis] Error al añadir a blacklist ${jti}:`, error);
+      logger.error({ jti, err: error.message }, '[Redis] Error al añadir a blacklist');
     }
   }
 
@@ -57,7 +58,7 @@ class RedisConnector {
       const exists = await this.client.exists(`blacklist:${jti}`);
       return exists === 1;
     } catch (error) {
-      console.error(`[Redis] Error al comprobar blacklist para ${jti}:`, error);
+      logger.error({ jti, err: error.message }, '[Redis] Error al comprobar blacklist');
       // En caso de error de Redis, por seguridad podríamos denegar, 
       // pero aquí optamos por permitir (fail-open) para no bloquear el servicio 
       // si Redis cae temporalmente, a menos que la política de seguridad sea estricta.

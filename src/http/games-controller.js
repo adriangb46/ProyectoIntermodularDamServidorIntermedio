@@ -1,6 +1,7 @@
 import { gameStore } from '../game/state/game-store.js';
 import { dbConnector } from '../db/db-connector.js';
 import { syncManager } from '../game/state/sync-manager.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Devuelve la lista de clanes ya ocupados en una partida específica.
@@ -110,7 +111,7 @@ export const createGameController = async (req, res, next) => {
     
     gameStore.addGame(newGame);
 
-    console.log(`[Game] Nueva partida creada: ${gameDto.id} por usuario ${username}`);
+    logger.info({ gameId: gameDto.id, username }, '[Game] Nueva partida creada');
 
     return res.status(201).json(gameDto);
   } catch (error) {

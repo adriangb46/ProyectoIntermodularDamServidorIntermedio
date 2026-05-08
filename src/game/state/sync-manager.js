@@ -82,7 +82,7 @@ class SyncManager {
     // Usamos el id del DTO como fuente de verdad (el id del state es equivalente pero
     // preferimos el DTO para mantener coherencia con la DB)
     const game = new Game({ id: gameDto.id, maxPlayers: gameDto.maxPlayers });
-    game.phase = stateJson.phase || 'waiting';
+    game.phase = (stateJson.phase || 'waiting').toLowerCase();
     game.startedAt = stateJson.startedAt || null;
     game.eventQueue = Array.isArray(stateJson.eventQueue) ? stateJson.eventQueue : [];
 
@@ -199,78 +199,14 @@ class SyncManager {
     return status.toLowerCase();
   }
 
-  /**
-   * Inicia el volcado periódico del estado de la memoria a la base de datos.
-   * @param {number} intervalMs - Intervalo en milisegundos entre volcados.
-   */
-  startPeriodicSync(intervalMs) {
-    logger.info({ intervalMs }, '[Sync] Iniciando volcado periódico a PostgreSQL');
 
-    setInterval(async () => {
-      const games = gameStore.getAll();
-      if (games.length === 0) return; // Nada que volcar
-
-      let dumpedCount = 0;
-      let errorsCount = 0;
-
-      for (const game of games) {
-        try {
-          await dbConnector.dumpState(game.id, game.toJSON());
-          dumpedCount++;
-        } catch (error) {
-          logger.error({ gameId: game.id, err: error.message }, '[Sync] Error al volcar estado de partida');
-          errorsCount++;
-        }
-      }
-
-      if (errorsCount > 0) {
-        logger.warn({ errorsCount, dumpedCount }, '[Sync] Volcado periódico finalizado con errores');
-      } else {
-        logger.debug({ dumpedCount }, '[Sync] Volcado periódico exitoso');
-      }
-    }, intervalMs);
-  }
-
-  /**
-   * Inicia el volcado analítico periódico del estado de la memoria a la base de datos (MongoDB).
-   * @param {number} intervalMs - Intervalo en milisegundos entre volcados analíticos.
-   */
-  startPeriodicAnalyticsSync(intervalMs) {
-    logger.info({ intervalMs }, '[Sync] Iniciando volcado analítico a MongoDB');
-
-    setInterval(async () => {
-      const games = gameStore.getAll();
-      if (games.length === 0) return; // Nada que volcar
-
-      let dumpedCount = 0;
-      let errorsCount = 0;
-
-      for (const game of games) {
-        try {
-          const snapshotDto = this._mapGameToAnalyticsSnapshot(game);
-          await dbConnector.publishAnalyticsSnapshot(snapshotDto);
-          dumpedCount++;
-        } catch (error) {
-          logger.error({ gameId: game.id, err: error.message }, '[Sync] Error al volcar analítica');
-          errorsCount++;
-        }
-      }
-
-      if (errorsCount > 0) {
-        logger.warn({ errorsCount, dumpedCount }, '[Sync] Volcado analítico finalizado con errores');
-      } else {
-        logger.debug({ dumpedCount }, '[Sync] Volcado analítico exitoso');
-      }
-    }, intervalMs);
-  }
 
   /**
    * Mapea una partida (Game) al formato AnalyticsSnapshotRequestDto para MongoDB.
    * @param {Game} game 
    * @returns {Object} DTO de la instantánea analítica.
-   * @private
    */
-  _mapGameToAnalyticsSnapshot(game) {
+  mapGameToAnalyticsSnapshot(game) {
     const playersSnapshot = Object.values(game.players).map(player => ({
       characterId: player.characterId,
       clanId: player.clanId || 'unknown',
@@ -290,9 +226,9 @@ class SyncManager {
     return {
       gameId: game.id,
       snapshotAt: new Date().toISOString(),
-      phase: game.phase,
+      phase: game.phase.toUpperCase(),
       players: playersSnapshot,
-      // TODO: Implementar el historial de battleEvents una vez se implemente combat-resolver.js
+      // El historial de battleEvents se implementará en el futuro
       battleEvents: []
     };
   }

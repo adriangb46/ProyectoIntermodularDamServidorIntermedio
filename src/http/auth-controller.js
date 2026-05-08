@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config/index.js';
 import { dbConnector } from '../db/db-connector.js';
 import crypto from 'crypto';
+import { logger } from '../utils/logger.js';
 
 /**
  * Controlador de Login (HTTP REST) — "La Taquilla"
@@ -27,7 +28,7 @@ export const loginController = async (req, res, next) => {
       const rawResponse = await dbConnector.verifyCredentials(username, password);
       dbResponse = rawResponse?.data || rawResponse;
     } catch (err) {
-      console.warn(`[Taquilla] Login fallido: Credenciales denegadas para ${username}.`);
+      logger.warn({ username }, '[Taquilla] Login fallido: Credenciales denegadas.');
       return res.status(401).json({ message: "Usuario o contraseña inválidos" });
     }
 
@@ -48,7 +49,7 @@ export const loginController = async (req, res, next) => {
       { expiresIn: '2h' } // Duración corta por seguridad
     );
 
-    console.log(`[Taquilla] Login exitoso: ${username} autenticado. Emisión de JWT completada.`);
+    logger.info({ username }, '[Taquilla] Login exitoso. Emisión de JWT completada.');
 
     // 3. Devolver el token al frontend
     return res.status(200).json({ token });
@@ -78,7 +79,7 @@ export const registerController = async (req, res, next) => {
       const rawResponse = await dbConnector.createUser({ username, email, password });
       dbResponse = rawResponse?.data || rawResponse;
     } catch (err) {
-      console.warn(`[Taquilla] Registro fallido para ${username}: ${err.message}`);
+      logger.warn({ username, err: err.message }, '[Taquilla] Registro fallido');
       // Si es un 409 Conflict o similar
       if (err.status === 409) {
         return res.status(409).json({ message: err.message });
@@ -100,7 +101,7 @@ export const registerController = async (req, res, next) => {
       { expiresIn: '2h' }
     );
 
-    console.log(`[Taquilla] Registro exitoso: ${username} creado. Emisión de JWT completada.`);
+    logger.info({ username }, '[Taquilla] Registro exitoso. Emisión de JWT completada.');
 
     // 3. Devolver el token al frontend
     return res.status(201).json({ token });
@@ -126,7 +127,7 @@ export const logoutController = async (req, res, next) => {
     const { redisConnector } = await import('../db/redis-connector.js');
     await redisConnector.blacklist(jti, ttlSeconds);
 
-    console.log(`[Taquilla] Logout exitoso para JTI: ${jti}. Token invalidado en Redis.`);
+    logger.info({ jti }, '[Taquilla] Logout exitoso. Token invalidado en Redis.');
 
     return res.status(200).json({ message: "Sesión cerrada correctamente" });
   } catch (error) {

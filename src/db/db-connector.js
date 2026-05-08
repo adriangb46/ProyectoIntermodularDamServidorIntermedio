@@ -1,4 +1,5 @@
 import { config } from '../config/index.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Cliente REST para la comunicación con el DB Server (Spring Boot).
@@ -52,16 +53,16 @@ class DbConnector {
           throw new Error('Token not found in handshake response.');
         }
 
-        console.log('✅ DB Server handshake successful.');
+        logger.info('✅ DB Server handshake successful.');
         return; // éxito → salimos del bucle
 
       } catch (error) {
         const isLastAttempt = attempt >= maxRetries;
         if (isLastAttempt) {
-          console.error(`❌ Handshake fallido tras ${maxRetries} intentos: ${error.message}`);
+          logger.error({ err: error.message, maxRetries }, '❌ Handshake fallido tras máximos intentos');
           throw error;
         }
-        console.warn(`⏳ Handshake intento ${attempt}/${maxRetries} fallido (${error.message}). Reintentando en ${delayMs / 1000}s...`);
+        logger.warn({ attempt, maxRetries, err: error.message, delayMs }, '⏳ Handshake fallido. Reintentando...');
         await new Promise(resolve => setTimeout(resolve, delayMs));
         // Backoff exponencial con techo en 30s
         delayMs = Math.min(delayMs * 2, 30_000);
@@ -91,6 +92,14 @@ class DbConnector {
 
     let fetchOptions = { ...options, headers };
     let response = await fetch(url, fetchOptions);
+
+    if (response.status === 401) {
+      logger.warn('Token rechazado por el DB Server (401). Renovando handshake y reintentando...');
+      await this.performHandshake(3, 1000); // Reintento corto
+      headers.set('Authorization', `Bearer ${this.token}`);
+      fetchOptions = { ...options, headers };
+      response = await fetch(url, fetchOptions);
+    }
 
     if (!response.ok) {
       let errorMsg = `Request failed with status ${response.status}`;

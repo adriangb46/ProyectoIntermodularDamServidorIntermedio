@@ -94,9 +94,8 @@ async function startServer() {
 
     timeWheel.start();
 
-    // Arrancar volcado periódico a base de datos
-    syncManager.startPeriodicSync(config.postgresDumpIntervalMs);
-    syncManager.startPeriodicAnalyticsSync(config.mongoDbDumpIntervalMs);
+    // Los volcados periódicos ahora se programan automáticamente en el TimeWheel
+    // al cargar o crear cada partida (ver TimeWheel._processTick).
 
     // Arrancar el servidor HTTP
     httpServer.listen(config.port, () => {

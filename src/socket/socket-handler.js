@@ -117,7 +117,7 @@ export const initSocketHandler = (io, timeWheel) => {
             game.players[character.id] = player;
             logger.info({ username, gameId, clanId }, '[Socket] Jugador se ha unido a la partida');
           } catch (err) {
-            console.error('[Socket Error] auto-join in join_game:', err);
+            logger.error({ err: err.message }, '[Socket Error] auto-join in join_game');
             return socket.emit('game:error', { message: 'No se pudo unir a la partida: ' + err.message });
           }
         }
@@ -311,10 +311,10 @@ export const initSocketHandler = (io, timeWheel) => {
         return;
       }
 
-      // 6. Notificar a TODOS los jugadores de la sala que la partida ha comenzado
+      // 6. Notificar a los jugadores de la sala que la partida ha comenzado
       io.to(roomName).emit('game:phase-changed', {
         gameId,
-        newPhase: 'preparation',
+        newPhase: 'PREPARATION',
         warStartsAt: result.warStartsAt,
       });
 

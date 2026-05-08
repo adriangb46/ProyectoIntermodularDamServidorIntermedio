@@ -3,6 +3,7 @@ import sharp from 'sharp';
 import { fileTypeFromBuffer } from 'file-type';
 import { minioConnector } from '../db/minio-connector.js';
 import { dbConnector } from '../db/db-connector.js';
+import { logger } from '../utils/logger.js';
 
 // Tipos MIME aceptados validados por magic bytes (security.md §9)
 const ALLOWED_MIME_TYPES = new Set([
@@ -40,7 +41,7 @@ export const avatarUploadController = async (req, res, next) => {
     const fileTypeResult = await fileTypeFromBuffer(req.file.buffer);
     if (!fileTypeResult || !ALLOWED_MIME_TYPES.has(fileTypeResult.mime)) {
       const detectedType = fileTypeResult?.mime || 'desconocido';
-      console.warn(`[Avatar] Tipo de archivo rechazado: ${detectedType} para usuario ${req.user.username}`);
+      logger.warn({ username: req.user.username, detectedType }, '[Avatar] Tipo de archivo rechazado');
       return res.status(400).json({
         message: 'Tipo de archivo no permitido. Solo se aceptan imágenes JPEG, PNG y WebP',
       });
@@ -66,11 +67,11 @@ export const avatarUploadController = async (req, res, next) => {
     try {
       await dbConnector.updateAvatar(req.user.userId, avatarUrl);
     } catch (err) {
-      console.error(`[Avatar] Error al persistir URL de avatar para ${req.user.username}: ${err.message}`);
+      logger.error({ username: req.user.username, err: err.message }, '[Avatar] Error al persistir URL de avatar');
       return res.status(500).json({ message: 'Error al guardar el avatar' });
     }
 
-    console.log(`[Avatar] Avatar actualizado para ${req.user.username}: ${avatarUrl}`);
+    logger.info({ username: req.user.username, avatarUrl }, '[Avatar] Avatar actualizado');
 
     // 9. Devolver la URL pública al frontend (el cliente la carga directamente desde MinIO)
     return res.status(200).json({ avatarUrl });
