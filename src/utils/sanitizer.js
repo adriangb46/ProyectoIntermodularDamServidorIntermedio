@@ -43,7 +43,7 @@ function sanitizeInput(input) {
   return sanitizeValue(input);
 }
 
-module.exports = {
+export {
   sanitizeInput,
   sanitizeValue
 };

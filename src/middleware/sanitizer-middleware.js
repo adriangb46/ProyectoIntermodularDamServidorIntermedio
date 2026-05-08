@@ -1,9 +1,9 @@
-const { sanitizeInput } = require('../utils/sanitizer');
+import { sanitizeInput } from '../utils/sanitizer.js';
 
 /**
  * Middleware para Express que sanitiza automáticamente req.body, req.query y req.params.
  */
-function sanitizerMiddleware(req, res, next) {
+export function sanitizerMiddleware(req, res, next) {
   if (req.body) {
     req.body = sanitizeInput(req.body);
   }
@@ -16,4 +16,4 @@ function sanitizerMiddleware(req, res, next) {
   next();
 }
 
-module.exports = sanitizerMiddleware;
+export default sanitizerMiddleware;

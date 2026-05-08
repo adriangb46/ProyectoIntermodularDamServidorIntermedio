@@ -8,6 +8,7 @@ import { dbConnector } from '../db/db-connector.js';
 import { Player } from '../models/player.js';
 import { Game } from '../models/game.js';
 import { logger } from '../utils/logger.js';
+import { sanitizeInput } from '../utils/sanitizer.js';
 
 /**
  * Envía el estado actualizado de la partida a todos los jugadores conectados,
@@ -46,6 +47,7 @@ export const initSocketHandler = (io, timeWheel) => {
     // El jugador se une a la sala de una partida para recibir sus eventos.
     // -------------------------------------------------------------------------
     socket.on('join_game', async (payload) => {
+      payload = sanitizeInput(payload);
       const { gameId, clanId } = payload || {};
 
       // Rate limiting por IP para el evento join_game (security.md §3)
@@ -148,6 +150,7 @@ export const initSocketHandler = (io, timeWheel) => {
     // Crea una nueva partida y se une a ella.
     // -------------------------------------------------------------------------
     socket.on('game:create', async (payload) => {
+      payload = sanitizeInput(payload);
       try {
         const { clanId } = payload || {};
         if (!clanId) return socket.emit('game:error', { message: 'clanId requerido' });
@@ -252,6 +255,7 @@ export const initSocketHandler = (io, timeWheel) => {
     // Consulta clanes ocupados en una partida.
     // -------------------------------------------------------------------------
     socket.on('game:availability', (payload) => {
+      payload = sanitizeInput(payload);
       const { gameId } = payload || {};
       let game = gameStore.getGame(gameId);
       if (!game) {
@@ -270,6 +274,7 @@ export const initSocketHandler = (io, timeWheel) => {
     // Mueve la partida de `waiting` → `preparation` y programa PHASE_TRANSITION_WAR.
     // -------------------------------------------------------------------------
     socket.on('game:start', (payload) => {
+      payload = sanitizeInput(payload);
       const { gameId } = payload || {};
 
       // 1. Validar payload mínimo (security.md §4)
@@ -325,6 +330,7 @@ export const initSocketHandler = (io, timeWheel) => {
     // Payload: { gameId, targetCharacterId, troopIds: string[] }
     // -------------------------------------------------------------------------
     socket.on('game:attack', (payload) => {
+      payload = sanitizeInput(payload);
       const { gameId, targetCharacterId, troopIds } = payload || {};
 
       // 1. Validar campos obligatorios (security.md §4)
@@ -393,6 +399,7 @@ export const initSocketHandler = (io, timeWheel) => {
     // Payload: { gameId, troopTypeId }
     // -------------------------------------------------------------------------
     socket.on('game:train', (payload) => {
+      payload = sanitizeInput(payload);
       const { gameId, troopTypeId } = payload || {};
 
       // 1. Validar campos obligatorios (security.md §4)
@@ -454,6 +461,7 @@ export const initSocketHandler = (io, timeWheel) => {
     // Payload: { gameId, researchId }
     // -------------------------------------------------------------------------
     socket.on('game:research', (payload) => {
+      payload = sanitizeInput(payload);
       const { gameId, researchId } = payload || {};
 
       // 1. Validar campos obligatorios (security.md §4)
@@ -513,6 +521,7 @@ export const initSocketHandler = (io, timeWheel) => {
     // El jugador abandona la partida, marcándose como eliminado y su capital a 0.
     // -------------------------------------------------------------------------
     socket.on('game:abandon', (payload) => {
+      payload = sanitizeInput(payload);
       const { gameId } = payload || {};
 
       if (!gameId || typeof gameId !== 'string') {
@@ -568,6 +577,7 @@ export const initSocketHandler = (io, timeWheel) => {
     // Retransmite un log generado por un cliente a todos los jugadores de la sala.
     // -------------------------------------------------------------------------
     socket.on('game:send-log', (payload) => {
+      payload = sanitizeInput(payload);
       const { gameId, logEntry } = payload || {};
       
       if (!gameId || !logEntry) return;
