@@ -1,20 +1,84 @@
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 
+/** Margen de seguridad en ms para renovar el token ANTES de que expire (5 minutos). */
+const RENEWAL_MARGIN_MS = 5 * 60 * 1000;
+
 /**
  * Cliente REST para la comunicación con el DB Server (Spring Boot).
- * Utiliza fetch nativo (Node 18+) e incluye gestión de handshake.
+ * Utiliza fetch nativo (Node 18+) e incluye gestión de handshake y
+ * renovación proactiva del JWT antes de su expiración.
  */
 class DbConnector {
   constructor() {
     this.token = null;
     this.baseUrl = config.dbServerUrl;
+    /** @type {NodeJS.Timeout | null} Timer de renovación proactiva del token. */
+    this._renewalTimer = null;
   }
 
   /**
-   * Realiza el handshake inicial con el DB server utilizando el secreto configurado.
-   * Guarda el token JWT devuelto en memoria.
-   * Incorpora lógica de reintentos con backoff exponencial para tolerar arranques lentos del DB server.
+   * Decodifica el payload del JWT (sin verificar firma, solo para leer claims).
+   * Es seguro en este contexto porque el token viene del DB Server de confianza.
+   * @param {string} token
+   * @returns {{ exp?: number } | null}
+   */
+  _decodeJwtPayload(token) {
+    try {
+      const payloadB64 = token.split('.')[1];
+      // El payload del JWT usa base64url; reemplazamos los caracteres no estándar
+      const payloadJson = Buffer.from(payloadB64, 'base64url').toString('utf-8');
+      return JSON.parse(payloadJson);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Programa la renovación proactiva del token basándose en el claim `exp`.
+   * El timer se lanza RENEWAL_MARGIN_MS antes de la expiración.
+   * Cancela cualquier timer previo antes de crear uno nuevo.
+   * @param {string} token - El JWT recién recibido.
+   */
+  _scheduleTokenRenewal(token) {
+    // Cancelar renovación previa si existía
+    if (this._renewalTimer) {
+      clearTimeout(this._renewalTimer);
+      this._renewalTimer = null;
+    }
+
+    const payload = this._decodeJwtPayload(token);
+    if (!payload?.exp) {
+      logger.warn('[DbConnector] El token no contiene claim exp; se omite la renovación proactiva.');
+      return;
+    }
+
+    // exp en JWT es en segundos; convertimos a ms
+    const expiresAtMs = payload.exp * 1000;
+    const renewInMs = expiresAtMs - Date.now() - RENEWAL_MARGIN_MS;
+
+    if (renewInMs <= 0) {
+      // El token ya está muy próximo a expirar; renovamos inmediatamente
+      logger.warn('[DbConnector] Token próximo a expirar. Renovando handshake de inmediato.');
+      this.performHandshake(3, 1000).catch(err =>
+        logger.error({ err: err.message }, '[DbConnector] Error en renovación proactiva inmediata')
+      );
+      return;
+    }
+
+    logger.debug({ renewInMs }, '[DbConnector] Renovación proactiva del token programada.');
+    this._renewalTimer = setTimeout(() => {
+      logger.info('[DbConnector] Renovando token proactivamente antes de su expiración.');
+      this.performHandshake(3, 1000).catch(err =>
+        logger.error({ err: err.message }, '[DbConnector] Error en renovación proactiva')
+      );
+    }, renewInMs);
+  }
+
+  /**
+   * Realiza el handshake con el DB server utilizando el secreto configurado.
+   * Guarda el token JWT devuelto en memoria y programa su renovación proactiva.
+   * Incorpora lógica de reintentos con backoff exponencial para tolerar arranques lentos.
    * @param {number} maxRetries - Número máximo de reintentos (por defecto 10)
    * @param {number} initialDelayMs - Tiempo de espera inicial en ms (por defecto 3000)
    */
@@ -54,6 +118,8 @@ class DbConnector {
         }
 
         logger.info('✅ DB Server handshake successful.');
+        // Programar la renovación proactiva del token
+        this._scheduleTokenRenewal(this.token);
         return; // éxito → salimos del bucle
 
       } catch (error) {

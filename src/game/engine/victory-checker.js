@@ -1,4 +1,5 @@
 import { dbConnector } from '../../db/db-connector.js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * Módulo de detección de condiciones de fin de partida.
@@ -88,7 +89,7 @@ function _resolveGameEnd(game, io) {
 
   game.setPhase('end');
 
-  console.log(`[VictoryChecker] Partida ${game.id} → fase END (2 jugadores restantes).`);
+  logger.info({ gameId: game.id }, '[VictoryChecker] Partida → fase END (2 jugadores restantes).');
 
   // Emitir resultado a todos los clientes de la sala
   io.to(`game_${game.id}`).emit('game:phase-changed', {
@@ -115,12 +116,10 @@ function _resolveGameFinished(game, io, winnerCharacterId) {
 
   game.setPhase('finished');
 
-  console.log(
-    `[VictoryChecker] Partida ${game.id} → fase FINISHED. ` +
-      (winnerCharacterId
-        ? `Ganador: ${winnerCharacterId}`
-        : 'Resultado: EMPATE (0 supervivientes)')
-  );
+  logger.info({ 
+    gameId: game.id, 
+    winnerCharacterId 
+  }, '[VictoryChecker] Partida → fase FINISHED. ' + (winnerCharacterId ? `Ganador: ${winnerCharacterId}` : 'Resultado: EMPATE'));
 
   // Emitir resultado a todos los clientes de la sala
   io.to(`game_${game.id}`).emit('game:ended', {
@@ -133,11 +132,12 @@ function _resolveGameFinished(game, io, winnerCharacterId) {
   dbConnector
     .endGame(game.id, { winnerCharacterId })
     .then(() => {
-      console.log(`[VictoryChecker] DB Server notificado: partida ${game.id} finalizada.`);
+      logger.info({ gameId: game.id }, '[VictoryChecker] DB Server notificado: partida finalizada.');
     })
     .catch((err) => {
-      console.error(
-        `[VictoryChecker] Error al notificar fin de partida ${game.id} al DB Server: ${err.message}`
-      );
+      logger.error({ 
+        gameId: game.id, 
+        err: err.message 
+      }, '[VictoryChecker] Error al notificar fin de partida al DB Server');
     });
 }
