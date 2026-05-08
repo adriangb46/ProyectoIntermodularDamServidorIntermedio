@@ -1,6 +1,7 @@
 import { checkJoinGameRateLimit } from '../middleware/rate-limiter.js';
 import { gameStore } from '../game/state/game-store.js';
-import { startGame, launchAttack, trainTroop, startResearch } from '../game/actions/game-actions.js';
+import { startGame, launchAttack, trainTroop, startResearch, abandonGame } from '../game/actions/game-actions.js';
+import { checkVictory } from '../game/engine/victory-checker.js';
 import { config } from '../config/index.js';
 import { buildGameView } from '../game/engine/fog-of-war.js';
 import { dbConnector } from '../db/db-connector.js';
@@ -505,6 +506,61 @@ export const initSocketHandler = (io, timeWheel) => {
       syncGameStateToAll(io, game);
 
       logger.info({ username, researchId }, '[Socket] Investigación iniciada');
+    });
+
+    // -------------------------------------------------------------------------
+    // Evento: game:abandon
+    // El jugador abandona la partida, marcándose como eliminado y su capital a 0.
+    // -------------------------------------------------------------------------
+    socket.on('game:abandon', (payload) => {
+      const { gameId } = payload || {};
+
+      if (!gameId || typeof gameId !== 'string') {
+        socket.emit('game:error', { message: 'gameId inválido o ausente.' });
+        return;
+      }
+
+      const roomName = `game_${gameId}`;
+      if (!socket.rooms.has(roomName)) {
+        socket.emit('game:error', { message: 'No estás en la sala de esa partida.' });
+        return;
+      }
+
+      const game = gameStore.getGame(gameId);
+      if (!game) {
+        socket.emit('game:error', { message: 'Partida no encontrada.' });
+        return;
+      }
+
+      if (!socket.characterId) {
+        socket.emit('game:error', { message: 'No se pudo identificar tu personaje.' });
+        return;
+      }
+
+      const result = abandonGame(game, socket.characterId);
+
+      if (!result.success) {
+        socket.emit('game:error', { message: result.message });
+        return;
+      }
+
+      // El jugador de este socket acaba de abandonar, puede haber desencadenado una victoria
+      checkVictory(game, io);
+
+      // Notificar a todos los jugadores restantes
+      io.to(roomName).emit('game:player-eliminated', {
+        characterId: socket.characterId,
+        username,
+        reason: 'abandoned'
+      });
+
+      // Sincronizar estado a todos
+      syncGameStateToAll(io, game);
+
+      logger.info({ username, gameId }, '[Socket] Jugador abandonó la partida');
+      
+      // Finalmente, hacer que este socket salga de la sala
+      socket.leave(roomName);
     });
 
     // -------------------------------------------------------------------------

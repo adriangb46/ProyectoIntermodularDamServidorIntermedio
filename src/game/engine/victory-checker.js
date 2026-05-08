@@ -24,24 +24,34 @@ import { dbConnector } from '../../db/db-connector.js';
  * @returns {boolean} `true` si se detectó condición de fin y se inició la transición; `false` en caso contrario.
  */
 export function checkVictory(game, io) {
-  // Solo aplica en fase de guerra — en preparación no se puede eliminar a nadie
-  if (game.phase !== 'war') {
+  // Se evalúa en las fases de guerra y de batalla final (end)
+  if (game.phase !== 'war' && game.phase !== 'end') {
     return false;
   }
 
   // Jugadores activos: vivos (capitalHealth > 0) y no marcados como eliminados
   const activePlayers = _getActivePlayers(game);
 
-  // Con más de 1 jugador activo la partida continúa
-  if (activePlayers.length > 1) {
+  // Con más de 2 jugadores activos la partida continúa en fase de guerra
+  if (activePlayers.length > 2) {
     return false;
   }
 
-  // --- Condición de fin detectada ---
+  // Si quedan exactamente 2 jugadores y estamos en guerra, transicionamos a la fase final (end)
+  if (activePlayers.length === 2) {
+    if (game.phase === 'war') {
+      _resolveGameEnd(game, io);
+      return true;
+    }
+    // Si ya estamos en 'end', simplemente continuamos
+    return false;
+  }
+
+  // --- Condición de fin detectada (1 o 0 jugadores) ---
   const winner = activePlayers.length === 1 ? activePlayers[0] : null;
   const winnerCharacterId = winner ? winner.characterId : null;
 
-  _resolveGameEnd(game, io, winnerCharacterId);
+  _resolveGameFinished(game, io, winnerCharacterId);
   return true;
 }
 
@@ -63,16 +73,14 @@ function _getActivePlayers(game) {
 }
 
 /**
- * Ejecuta la transición al estado final de la partida:
+ * Ejecuta la transición a la fase final de la partida (2 jugadores restantes):
  *  1. Actualiza la fase en memoria (`end`).
- *  2. Emite `game:ended` a todos los clientes de la sala.
- *  3. Notifica al DB Server de forma asíncrona (sin bloquear el tick).
+ *  2. Emite `game:phase-changed` a todos los clientes de la sala.
  *
  * @param {import('../../models/game').Game} game
  * @param {import('socket.io').Server} io
- * @param {string|null} winnerCharacterId - UUID del ganador o null si hay empate.
  */
-function _resolveGameEnd(game, io, winnerCharacterId) {
+function _resolveGameEnd(game, io) {
   // Idempotencia: si ya estamos en fase `end` o `finished`, ignorar
   if (game.phase === 'end' || game.phase === 'finished') {
     return;
@@ -80,8 +88,35 @@ function _resolveGameEnd(game, io, winnerCharacterId) {
 
   game.setPhase('end');
 
+  console.log(`[VictoryChecker] Partida ${game.id} → fase END (2 jugadores restantes).`);
+
+  // Emitir resultado a todos los clientes de la sala
+  io.to(`game_${game.id}`).emit('game:phase-changed', {
+    gameId: game.id,
+    newPhase: 'end',
+  });
+}
+
+/**
+ * Ejecuta la transición al estado terminado de la partida (1 o 0 jugadores):
+ *  1. Actualiza la fase en memoria (`finished`).
+ *  2. Emite `game:ended` a todos los clientes de la sala.
+ *  3. Notifica al DB Server de forma asíncrona.
+ *
+ * @param {import('../../models/game').Game} game
+ * @param {import('socket.io').Server} io
+ * @param {string|null} winnerCharacterId - UUID del ganador o null si hay empate.
+ */
+function _resolveGameFinished(game, io, winnerCharacterId) {
+  // Idempotencia: si ya estamos en fase `finished`, ignorar
+  if (game.phase === 'finished') {
+    return;
+  }
+
+  game.setPhase('finished');
+
   console.log(
-    `[VictoryChecker] Partida ${game.id} → fase END. ` +
+    `[VictoryChecker] Partida ${game.id} → fase FINISHED. ` +
       (winnerCharacterId
         ? `Ganador: ${winnerCharacterId}`
         : 'Resultado: EMPATE (0 supervivientes)')
@@ -91,19 +126,16 @@ function _resolveGameEnd(game, io, winnerCharacterId) {
   io.to(`game_${game.id}`).emit('game:ended', {
     gameId: game.id,
     winnerCharacterId,  // null = empate
-    phase: 'end',
+    phase: 'finished',
   });
 
   // Notificar al DB Server de forma no bloqueante
-  // Los errores de red no afectan la resolución del estado en memoria
   dbConnector
     .endGame(game.id, { winnerCharacterId })
     .then(() => {
       console.log(`[VictoryChecker] DB Server notificado: partida ${game.id} finalizada.`);
     })
     .catch((err) => {
-      // No propagamos el error — el estado en memoria ya está resuelto.
-      // El DB dump periódico podrá sincronizar el estado más tarde.
       console.error(
         `[VictoryChecker] Error al notificar fin de partida ${game.id} al DB Server: ${err.message}`
       );

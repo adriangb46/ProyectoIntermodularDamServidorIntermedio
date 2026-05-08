@@ -333,3 +333,36 @@ export function launchAttack(game, characterId, targetCharacterId, troopIds, tim
 
   return { success: true, arrivalAt };
 }
+
+/**
+ * Permite a un jugador abandonar la partida en curso.
+ * Se marcan sus tropas de la capital como dispersadas (destruidas),
+ * pero las que estén en viaje (desplegadas) siguen su curso.
+ *
+ * @param {import('../../models/game').Game} game
+ * @param {string} characterId
+ * @returns {{ success: boolean, message?: string }}
+ */
+export function abandonGame(game, characterId) {
+  if (['waiting', 'finished'].includes(game.phase)) {
+    return { success: false, message: 'No se puede abandonar la partida en esta fase.' };
+  }
+
+  const player = game.getPlayer(characterId);
+  if (!player) {
+    return { success: false, message: 'No eres participante de esta partida.' };
+  }
+  if (player.eliminated) {
+    return { success: false, message: 'El jugador ya ha sido eliminado.' };
+  }
+
+  // Marcar como eliminado
+  player.eliminated = true;
+  player.capitalHealth = 0;
+
+  // Dispersar las tropas que estaban en la capital (las desplegadas siguen atacando)
+  player.troops = player.troops.filter(t => t.deployed);
+
+  console.log(`[GameActions] El jugador ${characterId} ha abandonado la partida ${game.id}.`);
+  return { success: true };
+}

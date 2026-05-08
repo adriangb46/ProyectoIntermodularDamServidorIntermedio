@@ -143,6 +143,10 @@ export class TimeWheel {
         this._handlePhaseTransitionWar(game);
         break;
 
+      case 'PHASE_TRANSITION_END':
+        this._handlePhaseTransitionEnd(game);
+        break;
+
       case 'RESOURCE_TICK':
         this._handleResourceTick(game, now);
         break;
@@ -270,6 +274,39 @@ export class TimeWheel {
       type: 'RESOURCE_TICK',
       executeAt: Date.now() + firstResourceTickDelay,
     }));
+
+    // REGLA PARA PARTIDAS DE 2 JUGADORES
+    const totalPlayers = Object.keys(game.players).length;
+    if (totalPlayers === 2) {
+      // Programar la transición a END para dentro de 10 minutos (600_000 ms)
+      logger.info({ gameId: game.id }, '[TimeWheel] Partida de 2 jugadores: fase END programada en 10 min');
+      this.scheduleEvent(game.id, new GameEvent({
+        id: randomUUID(),
+        gameId: game.id,
+        type: 'PHASE_TRANSITION_END',
+        executeAt: Date.now() + 600_000,
+      }));
+    }
+  }
+
+  /**
+   * Gestiona la transición de la fase Guerra → End (batalla final).
+   * Ocurre en partidas que empezaron con 2 jugadores, tras pasar 10 minutos en guerra.
+   *
+   * @param {import('../../models/game').Game} game
+   */
+  _handlePhaseTransitionEnd(game) {
+    if (game.phase !== 'war') {
+      return;
+    }
+
+    game.setPhase('end');
+    logger.info({ gameId: game.id }, '[TimeWheel] Fase END (batalla final) iniciada por temporizador');
+
+    this.io.to(`game_${game.id}`).emit('game:phase-changed', {
+      gameId: game.id,
+      newPhase: 'end',
+    });
   }
 
   /**
