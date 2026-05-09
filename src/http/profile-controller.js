@@ -8,7 +8,7 @@ import { logger } from '../utils/logger.js';
 
 export const getProfileController = async (req, res, next) => {
   try {
-    const userId = req.user.sub; // Extraído del JWT por el middleware
+    const userId = req.user.userId; // Extraído del JWT por el middleware
     
     // Obtenemos el usuario del DB Server
     const response = await dbConnector.getUser(userId);
@@ -30,7 +30,7 @@ export const getProfileController = async (req, res, next) => {
 
 export const changePasswordController = async (req, res, next) => {
   try {
-    const userId = req.user.sub; // Security.md §5: ID del JWT, nunca del body
+    const userId = req.user.userId; // Security.md §5: ID del JWT, nunca del body
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
@@ -54,7 +54,7 @@ export const changePasswordController = async (req, res, next) => {
 
 export const updateEmailController = async (req, res, next) => {
   try {
-    const userId = req.user.sub; // Security.md §5
+    const userId = req.user.userId; // Security.md §5
     const { email } = req.body;
 
     if (!email) {

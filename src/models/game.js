@@ -35,6 +35,32 @@ export class Game {
       throw new Error(`La partida ${this.id} ya está llena (${this.maxPlayers} jugadores)`);
     }
     this.players[player.characterId] = player;
+    
+    // Si es el primer jugador en entrar, aseguramos que sea host por si acaso
+    if (Object.keys(this.players).length === 1) {
+      player.isHost = true;
+    }
+  }
+
+  /**
+   * Elimina un jugador de la partida (usado en fase waiting o por abandono).
+   * Si el jugador era el host, transfiere el host al siguiente disponible.
+   * @param {string} characterId 
+   */
+  removePlayer(characterId) {
+    const player = this.players[characterId];
+    if (!player) return;
+
+    const wasHost = player.isHost;
+    delete this.players[characterId];
+
+    // Si la partida no está vacía y el que salió era el host, asignamos uno nuevo
+    if (wasHost) {
+      const remainingPlayers = Object.values(this.players);
+      if (remainingPlayers.length > 0) {
+        remainingPlayers[0].isHost = true;
+      }
+    }
   }
 
   /**

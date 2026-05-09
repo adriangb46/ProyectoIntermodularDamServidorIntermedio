@@ -39,7 +39,8 @@ export const getAdminStatsController = async (req, res) => {
  */
 export const listUsersController = async (req, res) => {
   try {
-    const users = await dbConnector.getAllUsers();
+    const response = await dbConnector.getAllUsers();
+    const users = response?.data || response || [];
     res.json(users);
   } catch (error) {
     logger.error({ err: error.message }, '[Admin] Error al listar usuarios');

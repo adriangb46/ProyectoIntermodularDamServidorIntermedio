@@ -344,19 +344,27 @@ export function launchAttack(game, characterId, targetCharacterId, troopIds, tim
  * @returns {{ success: boolean, message?: string }}
  */
 export function abandonGame(game, characterId) {
-  if (['waiting', 'finished'].includes(game.phase)) {
-    return { success: false, message: 'No se puede abandonar la partida en esta fase.' };
+  if (game.phase === 'finished') {
+    return { success: false, message: 'La partida ya ha finalizado.' };
   }
 
   const player = game.getPlayer(characterId);
   if (!player) {
     return { success: false, message: 'No eres participante de esta partida.' };
   }
+
+  // Si estamos en fase waiting, el abandono es una salida física de la partida
+  if (game.phase === 'waiting') {
+    game.removePlayer(characterId);
+    console.log(`[GameActions] El jugador ${characterId} ha salido del lobby de la partida ${game.id}.`);
+    return { success: true, removed: true };
+  }
+
   if (player.eliminated) {
     return { success: false, message: 'El jugador ya ha sido eliminado.' };
   }
 
-  // Marcar como eliminado
+  // Marcar como eliminado (Fases: preparation, war, end)
   player.eliminated = true;
   player.capitalHealth = 0;
 
@@ -364,5 +372,5 @@ export function abandonGame(game, characterId) {
   player.troops = player.troops.filter(t => t.deployed);
 
   console.log(`[GameActions] El jugador ${characterId} ha abandonado la partida ${game.id}.`);
-  return { success: true };
+  return { success: true, removed: false };
 }

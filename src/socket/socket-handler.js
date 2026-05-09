@@ -93,6 +93,14 @@ export const initSocketHandler = (io, timeWheel) => {
             };
             const realClanId = archetypeToClan[clanId.toUpperCase()] || clanId.toLowerCase();
 
+            // Si el usuario ya está en la partida con otro personaje y estamos en waiting, lo eliminamos
+            // para permitir el cambio de clan sin dejar "fantasmas"
+            const existingPlayer = Object.values(game.players).find(p => p.userId === userId);
+            if (existingPlayer && game.phase === 'waiting') {
+              logger.info({ username, oldClan: existingPlayer.clanId, newClan: realClanId }, '[Socket] Reemplazando personaje previo por cambio de clan');
+              game.removePlayer(existingPlayer.characterId);
+            }
+
             // 1. Obtener/Crear personaje
             const charsResponse = await dbConnector.getCharactersByUser(userId);
             const characters = charsResponse?.data || charsResponse || [];
@@ -114,7 +122,7 @@ export const initSocketHandler = (io, timeWheel) => {
               capitalHealth: 3000, // Salud base MVP
               isHost: false
             });
-            game.players[character.id] = player;
+            game.addPlayer(player);
             logger.info({ username, gameId, clanId }, '[Socket] Jugador se ha unido a la partida');
           } catch (err) {
             logger.error({ err: err.message }, '[Socket Error] auto-join in join_game');
@@ -182,7 +190,7 @@ export const initSocketHandler = (io, timeWheel) => {
           capitalHealth: 3000,
           isHost: true
         });
-        newGame.players[character.id] = hostPlayer;
+        newGame.addPlayer(hostPlayer);
         gameStore.addGame(newGame);
 
         // 4. Unirse a la sala y confirmar
@@ -554,14 +562,22 @@ export const initSocketHandler = (io, timeWheel) => {
       }
 
       // El jugador de este socket acaba de abandonar, puede haber desencadenado una victoria
-      checkVictory(game, io);
+      if (!result.removed) {
+        checkVictory(game, io);
 
-      // Notificar a todos los jugadores restantes
-      io.to(roomName).emit('game:player-eliminated', {
-        characterId: socket.characterId,
-        username,
-        reason: 'abandoned'
-      });
+        // Notificar a todos los jugadores restantes
+        io.to(roomName).emit('game:player-eliminated', {
+          characterId: socket.characterId,
+          username,
+          reason: 'abandoned'
+        });
+      }
+
+      // Si la partida se queda vacía, eliminarla de memoria
+      if (Object.keys(game.players).length === 0) {
+        gameStore.removeGame(game.id);
+        logger.info({ gameId }, '[Socket] Partida eliminada de memoria por quedarse sin jugadores');
+      }
 
       // Sincronizar estado a todos
       syncGameStateToAll(io, game);
@@ -616,8 +632,8 @@ export const initSocketHandler = (io, timeWheel) => {
 
       const characterId = player.characterId;
 
-      // Eliminar al jugador de la partida en memoria
-      delete game.players[characterId];
+      // Eliminar al jugador de la partida en memoria usando el método del modelo (gestiona host transfer)
+      game.removePlayer(characterId);
       logger.info({ username, gameId, characterId }, '[Socket] Jugador salió del lobby');
 
       // Si la partida queda vacía, eliminarla de memoria

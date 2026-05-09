@@ -120,16 +120,20 @@ class SyncManager {
 
     // Crear un jugador esqueleto por cada participante conocido
     if (Array.isArray(gameDto.participants)) {
-      for (const participant of gameDto.participants) {
-        // characterId es el identificador principal en el Middle Server
+      // Ordenar por joinOrder para identificar al host (habitualmente el primero)
+      const sortedParticipants = [...gameDto.participants].sort((a, b) => (a.joinOrder ?? 0) - (b.joinOrder ?? 0));
+      
+      for (let i = 0; i < sortedParticipants.length; i++) {
+        const participant = sortedParticipants[i];
         const characterId = (participant.characterId ?? participant.id)?.toString();
         if (!characterId) continue;
 
         const player = new Player({
           characterId,
-          userId: null,       // Desconocido hasta que el usuario se conecte
-          clanId: null,       // Desconocido hasta que el usuario se conecte
-          capitalHealth: 100  // Valor por defecto — el estado real vendrá en el próximo volcado
+          userId: null,
+          clanId: null,
+          capitalHealth: 3000, // Salud base MVP
+          isHost: i === 0      // El primero en unirse es el host
         });
         player.eliminated = !!participant.eliminated;
         game.players[characterId] = player;
