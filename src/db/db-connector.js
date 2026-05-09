@@ -227,6 +227,20 @@ class DbConnector {
     });
   }
 
+  async changePassword(id, currentPassword, newPassword) {
+    return this.fetchWithAuth(`/internal/users/${id}/password`, {
+      method: 'PUT',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  }
+
+  async updateEmail(id, email) {
+    return this.fetchWithAuth(`/internal/users/${id}/email`, {
+      method: 'PUT',
+      body: JSON.stringify({ email }),
+    });
+  }
+
   // --- Endpoints de Personajes ---
 
   async getCharactersByUser(userId) {

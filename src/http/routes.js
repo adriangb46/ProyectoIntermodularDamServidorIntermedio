@@ -3,6 +3,7 @@ import multer from 'multer';
 import { loginController, registerController, logoutController } from './auth-controller.js';
 import { avatarUploadController } from './avatar-controller.js';
 import { getGameAvailabilityController } from './games-controller.js';
+import { getProfileController, changePasswordController, updateEmailController } from './profile-controller.js';
 import { httpAuthMiddleware } from '../middleware/auth.js';
 import { loginLimiter, registerLimiter } from '../middleware/rate-limiter.js';
 
@@ -26,6 +27,9 @@ httpRouter.get('/games/:code/availability', getGameAvailabilityController);
 // Rutas protegidas
 httpRouter.post('/logout', httpAuthMiddleware, logoutController);
 httpRouter.post('/avatar', httpAuthMiddleware, upload.single('avatar'), avatarUploadController);
+httpRouter.get('/profile', httpAuthMiddleware, getProfileController);
+httpRouter.put('/profile/password', httpAuthMiddleware, changePasswordController);
+httpRouter.put('/profile/email', httpAuthMiddleware, updateEmailController);
 
 // Aquí se pueden añadir más rutas HTTP si fueran necesarias en el futuro,
 // aunque la arquitectura dicta que el resto de comunicación será vía WebSockets.
