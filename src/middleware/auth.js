@@ -84,3 +84,17 @@ export const httpAuthMiddleware = async (req, res, next) => {
     return res.status(401).json({ message: "No autorizado: Token inválido o expirado" });
   }
 };
+
+/**
+ * Middleware para restringir el acceso según el rol.
+ * 
+ * @param {string} requiredRole 
+ */
+export const roleMiddleware = (requiredRole) => {
+  return (req, res, next) => {
+    if (!req.user || req.user.role !== requiredRole) {
+      return res.status(403).json({ message: "Prohibido: No tienes permisos suficientes" });
+    }
+    next();
+  };
+};

@@ -310,6 +310,36 @@ class DbConnector {
       body: JSON.stringify(snapshotDto),
     });
   }
+
+  async getAdminStats() {
+    return this.fetchWithAuth('/internal/admin/stats', {
+      method: 'GET',
+    });
+  }
+
+  async getAllUsers() {
+    return this.fetchWithAuth('/internal/admin/users', {
+      method: 'GET',
+    });
+  }
+
+  async banUser(userId) {
+    return this.fetchWithAuth(`/internal/admin/users/${userId}/ban`, {
+      method: 'PUT',
+    });
+  }
+
+  async unbanUser(userId) {
+    return this.fetchWithAuth(`/internal/admin/users/${userId}/unban`, {
+      method: 'PUT',
+    });
+  }
+
+  async getUserStats(userId) {
+    return this.fetchWithAuth(`/internal/analytics/user/${userId}`, {
+      method: 'GET',
+    });
+  }
 }
 
 // Exportamos como singleton
