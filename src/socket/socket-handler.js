@@ -363,7 +363,10 @@ export const initSocketHandler = (io, timeWheel) => {
       }
 
       // 3. Obtener la partida del GameStore (security.md §5)
-      const game = gameStore.getGame(gameId);
+      let game = gameStore.getGame(gameId);
+      if (!game) {
+        game = gameStore.getGameByShortId(gameId);
+      }
       if (!game) {
         socket.emit('game:error', { message: 'Partida no encontrada.' });
         return;

@@ -423,14 +423,23 @@ export class TimeWheel {
   }
 
   /**
-   * Gestiona la llegada de una tropa al destino de ataque.
-   * Aplica idempotencia, maneja al defensor eliminado y deja el hueco para combat-resolver (Sprint 3 Punto 2).
+   * Gestiona la llegada de tropas al destino de ataque.
+   * Resuelve el combate con TODAS las tropas del ataque agrupadas,
+   * sincroniza el estado a todos los clientes y comprueba victoria.
    *
    * @param {import('../../models/game').Game} game
-   * @param {Object} payload - { troopId, attackerCharacterId, targetCharacterId }
+   * @param {Object} payload - { troopIds: string[], attackerCharacterId, targetCharacterId }
    */
   _handleTroopArrival(game, payload) {
-    const { troopId, attackerCharacterId, targetCharacterId } = payload;
+    const { attackerCharacterId, targetCharacterId } = payload;
+
+    // Compatibilidad: soportar tanto troopIds (array) como troopId (string individual, formato antiguo)
+    const troopIds = payload.troopIds || (payload.troopId ? [payload.troopId] : []);
+
+    if (troopIds.length === 0) {
+      logger.warn({ gameId: game.id }, '[TimeWheel] _handleTroopArrival: sin troopIds en el payload');
+      return;
+    }
 
     // Buscar al jugador atacante
     const attacker = game.getPlayer(attackerCharacterId);
@@ -439,34 +448,45 @@ export class TimeWheel {
       return;
     }
 
-    // Buscar la tropa por su ID único
-    const troop = attacker.troops.find(t => t.id === troopId);
-    if (!troop) {
-      logger.warn({ troopId, attackerCharacterId }, '[TimeWheel] _handleTroopArrival: tropa no encontrada');
+    // Resolver las instancias de tropa y filtrar las válidas (desplegadas y vivas)
+    const attackingTroops = [];
+    for (const troopId of troopIds) {
+      const troop = attacker.troops.find(t => t.id === troopId);
+      if (!troop) {
+        logger.warn({ troopId, attackerCharacterId }, '[TimeWheel] _handleTroopArrival: tropa no encontrada');
+        continue;
+      }
+      // Idempotencia: si la tropa ya no está desplegada, fue procesada o cancelada
+      if (!troop.deployed) {
+        continue;
+      }
+      attackingTroops.push(troop);
+    }
+
+    // Si ninguna tropa válida quedó, no hay combate
+    if (attackingTroops.length === 0) {
+      logger.info({ attackerCharacterId, gameId: game.id }, '[TimeWheel] Todas las tropas del ataque fueron invalidadas');
       return;
     }
 
-    // Idempotencia: si la tropa ya no está desplegada, el evento ya fue procesado o fue cancelado
-    if (!troop.deployed) {
-      return;
-    }
-
-    // Caso especial: el defensor fue eliminado mientras la tropa viajaba
+    // Caso especial: el defensor fue eliminado mientras las tropas viajaban
     const defender = game.getPlayer(targetCharacterId);
     if (!defender || defender.eliminated) {
-      logger.info({ troopId, targetCharacterId }, '[TimeWheel] Objetivo ya eliminado. Tropa regresa a casa.');
-      troop.returnHome();
+      logger.info({ targetCharacterId }, '[TimeWheel] Objetivo ya eliminado. Tropas regresan a casa.');
+      for (const troop of attackingTroops) {
+        troop.returnHome();
+      }
       this.io.to(`game_${game.id}`).emit('game:troop-returned', {
         attackerCharacterId,
-        troopId,
+        troopIds: attackingTroops.map(t => t.id),
         reason: 'target_eliminated',
       });
+      // Sincronizar estado para reflejar el regreso de las tropas
+      this._syncGameStateToAll(game);
       return;
     }
 
-    // --- Resolución de combate real (Sprint 3 Punto 2) ---
-    // La tropa que dispara este evento es la única participante del ataque
-    const attackingTroops = [troop];
+    // --- Resolución de combate real ---
     const result = resolveBattle(attacker, defender, attackingTroops, gameData);
 
     // Aplicar créditos de investigación al atacante (con cap al máximo configurado)
@@ -484,14 +504,15 @@ export class TimeWheel {
       gameId: game.id,
       attacker: attackerCharacterId,
       target: targetCharacterId,
+      troopCount: attackingTroops.length,
       damage: result.capitalDamage,
       eliminated: result.defenderEliminated
     }, '[TimeWheel] Batalla resuelta');
 
-    // Notificar a todos los jugadores de la sala
-    // Fog of War: sin IDs de tropas individuales ni vida exacta del defensor
+    // Notificar el resultado de la batalla a todos los jugadores de la sala
     this.io.to(`game_${game.id}`).emit('game:battle-result', {
       attackerCharacterId,
+      attackerUsername: attacker.username,
       targetCharacterId,
       capitalDamage: result.capitalDamage,
       attackerTroopsLost: result.attackerTroopsLost.length,
@@ -500,8 +521,30 @@ export class TimeWheel {
       researchCreditsEarned: result.researchCreditsEarned,
     });
 
+    // Sincronizar estado completo a todos los clientes (Fog of War)
+    // Esto es CRÍTICO para que el frontend vea las tropas actualizadas
+    this._syncGameStateToAll(game);
+
     // Comprobar condición de victoria tras la batalla
     checkVictory(game, this.io);
+  }
+
+  /**
+   * Sincroniza el estado de la partida a todos los jugadores conectados,
+   * aplicando Fog of War individual por jugador.
+   *
+   * @param {import('../../models/game').Game} game
+   */
+  _syncGameStateToAll(game) {
+    for (const player of Object.values(game.players)) {
+      if (player.connectedSocketId) {
+        const view = buildGameView(game, player.characterId);
+        this.io.to(player.connectedSocketId).emit('game:state-sync', {
+          ...view,
+          myCharacterId: player.characterId
+        });
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------

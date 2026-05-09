@@ -310,21 +310,23 @@ export function launchAttack(game, characterId, targetCharacterId, troopIds, tim
   const now = Date.now();
   const arrivalAt = now + config.troopTravelTimeMs;
 
-  // 7. Desplegar cada tropa y encolar un evento TROOP_ARRIVAL por instancia
+  // 7. Desplegar cada tropa y encolar un ÚNICO evento TROOP_ARRIVAL agrupado
+  const troopIdsDeployed = [];
   for (const troop of troopsToSend) {
     troop.deploy(targetCharacterId, arrivalAt);
-
-    timeWheel.scheduleEvent(game.id, new GameEvent({
-      gameId: game.id,
-      type: 'TROOP_ARRIVAL',
-      executeAt: arrivalAt,
-      payload: {
-        troopId: troop.id,
-        attackerCharacterId: characterId,
-        targetCharacterId,
-      },
-    }));
+    troopIdsDeployed.push(troop.id);
   }
+
+  timeWheel.scheduleEvent(game.id, new GameEvent({
+    gameId: game.id,
+    type: 'TROOP_ARRIVAL',
+    executeAt: arrivalAt,
+    payload: {
+      troopIds: troopIdsDeployed,
+      attackerCharacterId: characterId,
+      targetCharacterId,
+    },
+  }));
 
   console.log(
     `[GameActions] ${characterId} lanza ataque contra ${targetCharacterId} ` +
