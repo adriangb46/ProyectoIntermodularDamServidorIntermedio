@@ -48,6 +48,8 @@ export class Player {
       totalDamageDealt: 0,
       totalDamageReceived: 0,
       totalTroopsLost: 0,
+      totalTroopsDeployed: 0,
+      timePlayedMs: 0,
     };
   }
 

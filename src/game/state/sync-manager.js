@@ -211,22 +211,32 @@ class SyncManager {
    * @returns {Object} DTO de la instantánea analítica.
    */
   mapGameToAnalyticsSnapshot(game) {
-    const playersSnapshot = Object.values(game.players).map(player => ({
-      characterId: player.characterId,
-      clanId: player.clanId || 'unknown',
-      economicCredits: player.economicCredits,
-      researchCredits: player.researchCredits,
-      capitalHealth: player.capitalHealth,
-      troops: player.troops.map(troop => ({
-        troopId: troop.id,
-        typeId: troop.typeId,
-        currentPoints: troop.currentPoints,
-        deployed: troop.deployed
-      })),
-      unlockedResearches: player.unlockedResearches,
-      eliminated: player.eliminated,
-      stats: player.stats
-    }));
+    const playersSnapshot = Object.values(game.players).map(player => {
+      // Calcular tiempo jugado hasta ahora (si la partida ha empezado)
+      if (game.startedAt && !player.stats.timePlayedMs) {
+        player.stats.timePlayedMs = Date.now() - game.startedAt;
+      } else if (game.startedAt) {
+        // Actualizar si ya existía (para volcados periódicos)
+        player.stats.timePlayedMs = Date.now() - game.startedAt;
+      }
+
+      return {
+        characterId: player.characterId,
+        clanId: player.clanId || 'unknown',
+        economicCredits: player.economicCredits,
+        researchCredits: player.researchCredits,
+        capitalHealth: player.capitalHealth,
+        troops: player.troops.map(troop => ({
+          troopId: troop.id,
+          typeId: troop.typeId,
+          currentPoints: troop.currentPoints,
+          deployed: troop.deployed
+        })),
+        unlockedResearches: player.unlockedResearches,
+        eliminated: player.eliminated,
+        stats: player.stats
+      };
+    });
 
     return {
       gameId: game.id,

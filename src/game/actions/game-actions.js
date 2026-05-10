@@ -311,6 +311,8 @@ export function launchAttack(game, characterId, targetCharacterId, troopIds, tim
   const arrivalAt = now + config.troopTravelTimeMs;
 
   // 7. Desplegar cada tropa y encolar un ÚNICO evento TROOP_ARRIVAL agrupado
+  attacker.stats.totalTroopsDeployed += troopsToSend.length;
+  
   const troopIdsDeployed = [];
   for (const troop of troopsToSend) {
     troop.deploy(targetCharacterId, arrivalAt);
