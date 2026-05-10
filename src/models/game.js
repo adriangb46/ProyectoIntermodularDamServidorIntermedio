@@ -84,7 +84,7 @@ export class Game {
       // Asignar recursos iniciales a todos los jugadores (100% del máximo)
       for (const player of Object.values(this.players)) {
         player.economicCredits = config.maxEconomicCredits;
-        player.researchCredits = config.maxResearchCredits;
+        player.researchCredits = config.initialResearchCredits;
       }
     }
   }

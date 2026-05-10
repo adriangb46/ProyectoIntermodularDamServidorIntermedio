@@ -25,8 +25,8 @@ import { logger } from '../../utils/logger.js';
  * @returns {boolean} `true` si se detectó condición de fin y se inició la transición; `false` en caso contrario.
  */
 export function checkVictory(game, io) {
-  // Se evalúa en las fases de guerra y de batalla final (end)
-  if (game.phase !== 'war' && game.phase !== 'end') {
+  // Se evalúa en las fases iniciadas (preparación, guerra y batalla final)
+  if (!['preparation', 'war', 'end'].includes(game.phase)) {
     return false;
   }
 

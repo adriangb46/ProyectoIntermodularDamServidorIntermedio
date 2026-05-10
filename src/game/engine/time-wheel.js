@@ -246,14 +246,8 @@ export class TimeWheel {
     // Emitir vista filtrada por Fog of War a cada jugador conectado individualmente.
     // No se puede hacer un broadcast a la sala completa porque cada jugador
     // debe recibir una versión diferente del estado (sus datos completos + rivales censurados).
-    for (const player of Object.values(game.players)) {
-      if (player.connectedSocketId) {
-        this.io.to(player.connectedSocketId).emit(
-          'game:state-sync',
-          buildGameView(game, player.characterId)
-        );
-      }
-    }
+    // Emitir vista filtrada por Fog of War a cada jugador conectado individualmente.
+    this._syncGameStateToAll(game);
 
     // Programar el siguiente tick
     this.scheduleEvent(game.id, new GameEvent({
@@ -362,11 +356,7 @@ export class TimeWheel {
     }
 
     // Sincronizar estado completo para reflejar el cambio en la cola/investigación
-    for (const p of Object.values(game.players)) {
-      if (p.connectedSocketId) {
-        this.io.to(p.connectedSocketId).emit('game:state-sync', buildGameView(game, p.characterId));
-      }
-    }
+    this._syncGameStateToAll(game);
   }
 
   /**
@@ -415,11 +405,7 @@ export class TimeWheel {
     }
 
     // Sincronizar estado completo para reflejar la nueva tropa en el capital
-    for (const p of Object.values(game.players)) {
-      if (p.connectedSocketId) {
-        this.io.to(p.connectedSocketId).emit('game:state-sync', buildGameView(game, p.characterId));
-      }
-    }
+    this._syncGameStateToAll(game);
   }
 
   /**
@@ -495,10 +481,22 @@ export class TimeWheel {
       this.config.maxResearchCredits
     );
 
-    // Retornar tropas supervivientes a la capital del atacante
-    for (const survivor of result.attackerSurvivors) {
-      survivor.returnHome();
+    // Aplicar resultados al atacante (limpiar muertos y manejar supervivientes)
+    // Regla: Si el defensor NO es eliminado, las tropas atacantes supervivientes NO regresan (misión suicida)
+    if (result.defenderEliminated) {
+      for (const survivor of result.attackerSurvivors) {
+        survivor.returnHome();
+      }
+    } else {
+      // Si no ganaron, los supervivientes se consideran bajas en el asalto fallido
+      for (const survivor of result.attackerSurvivors) {
+        survivor.currentPoints = 0; // Se marcan como muertas para que cleanup las borre
+      }
     }
+    
+    // Limpiar bajas de ambos bandos
+    defender.cleanupDeadTroops();
+    attacker.cleanupDeadTroops();
 
     logger.info({
       gameId: game.id,
@@ -519,6 +517,11 @@ export class TimeWheel {
       defenderTroopsDestroyed: result.defenderTroopsDestroyed.length,
       defenderEliminated: result.defenderEliminated,
       researchCreditsEarned: result.researchCreditsEarned,
+      // Añadimos la salud actual para que el frontend pueda actualizar sus barras de vida sin esperar al sync
+      characterHealth: {
+        current: defender.capitalHealth,
+        max: 3000 // TODO: Obtener del modelo si fuera dinámico
+      }
     });
 
     // Sincronizar estado completo a todos los clientes (Fog of War)

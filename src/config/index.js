@@ -37,11 +37,11 @@ export const config = Object.freeze({
 
   // --- Recursos iniciales de los jugadores ---
   maxEconomicCredits: Number(process.env.MAX_ECONOMIC_CREDITS) || 1000,
-  maxResearchCredits: Number(process.env.MAX_RESEARCH_CREDITS) || 500,
+  maxResearchCredits: Number(process.env.MAX_RESEARCH_CREDITS) || 10000,
+  initialResearchCredits: Number(process.env.INITIAL_RESEARCH_CREDITS) || 500,
 
-  // --- Combate ---
-  // Tiempo de viaje fijo de las tropas atacantes (60 s por defecto)
-  troopTravelTimeMs: Number(process.env.TROOP_TRAVEL_TIME_MS) || 60_000,
+  // Tiempo de viaje fijo de las tropas atacantes (10 s por defecto)
+  troopTravelTimeMs: Number(process.env.TROOP_TRAVEL_TIME_MS) || 10_000,
 
   // --- Configuración de Redis ---
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',

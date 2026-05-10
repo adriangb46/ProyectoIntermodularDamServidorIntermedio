@@ -540,54 +540,62 @@ export const initSocketHandler = (io, timeWheel) => {
         return;
       }
 
-      const roomName = `game_${gameId}`;
-      if (!socket.rooms.has(roomName)) {
-        socket.emit('game:error', { message: 'No estás en la sala de esa partida.' });
-        return;
+      // Buscar partida (soporta UUID o short ID)
+      let game = gameStore.getGame(gameId);
+      if (!game) {
+        game = gameStore.getGameByShortId(gameId);
       }
 
-      const game = gameStore.getGame(gameId);
       if (!game) {
         socket.emit('game:error', { message: 'Partida no encontrada.' });
         return;
       }
 
-      if (!socket.characterId) {
-        socket.emit('game:error', { message: 'No se pudo identificar tu personaje.' });
+      // Identificar personaje: por socket (si ya hizo join_game) o por userId del JWT
+      let charId = socket.characterId;
+      if (!charId) {
+        const player = Object.values(game.players).find(p => p.userId === userId);
+        charId = player?.characterId;
+      }
+
+      if (!charId) {
+        socket.emit('game:error', { message: 'No se pudo identificar tu personaje en esta partida.' });
         return;
       }
 
-      const result = abandonGame(game, socket.characterId);
+      // Aplicar lógica de negocio de abandono
+      const result = abandonGame(game, charId);
 
       if (!result.success) {
         socket.emit('game:error', { message: result.message });
         return;
       }
 
-      // El jugador de este socket acaba de abandonar, puede haber desencadenado una victoria
-      if (!result.removed) {
-        checkVictory(game, io);
+      const roomName = `game_${game.id}`;
 
-        // Notificar a todos los jugadores restantes
+      // Notificar a los demás según el resultado
+      if (!result.removed) {
+        // En fases iniciadas (preparation, war, end), el jugador es marcado como eliminado
+        checkVictory(game, io);
         io.to(roomName).emit('game:player-eliminated', {
-          characterId: socket.characterId,
+          characterId: charId,
           username,
           reason: 'abandoned'
         });
       }
 
+      // Sincronizar estado a todos los que queden conectados
+      syncGameStateToAll(io, game);
+
       // Si la partida se queda vacía, eliminarla de memoria
       if (Object.keys(game.players).length === 0) {
         gameStore.removeGame(game.id);
-        logger.info({ gameId }, '[Socket] Partida eliminada de memoria por quedarse sin jugadores');
+        logger.info({ gameId: game.id }, '[Socket] Partida eliminada de memoria por quedarse sin jugadores');
       }
 
-      // Sincronizar estado a todos
-      syncGameStateToAll(io, game);
-
-      logger.info({ username, gameId }, '[Socket] Jugador abandonó la partida');
+      logger.info({ username, gameId: game.id, charId }, '[Socket] Jugador abandonó la partida');
       
-      // Finalmente, hacer que este socket salga de la sala
+      // Salir de la sala si estaba en ella
       socket.leave(roomName);
     });
 
@@ -605,48 +613,64 @@ export const initSocketHandler = (io, timeWheel) => {
         return;
       }
 
-      // Buscar la partida en memoria (por UUID completo o short id)
+      // Buscar partida (soporta UUID o short ID)
       let game = gameStore.getGame(gameId);
       if (!game) {
         game = gameStore.getGameByShortId(gameId);
       }
 
-      // Si la partida no está en memoria, intentar resolverla desde la DB y confirmar igual
-      // (el cliente la eliminará de su lista local)
       if (!game) {
-        logger.warn({ username, gameId }, '[Socket] lobby:leave: partida no encontrada en memoria');
+        logger.warn({ username, gameId }, '[Socket] lobby:leave: partida no encontrada');
         socket.emit('lobby:left', { gameId });
         return;
       }
 
-      // Solo se puede salir del lobby si la partida está en fase waiting
-      if (game.phase !== 'waiting') {
-        socket.emit('lobby:leave-error', { message: 'La partida ya ha comenzado. Usa el botón de abandonar dentro del juego.' });
-        return;
-      }
-
-      // Buscar al jugador por userId en esta partida
+      // Identificar jugador por userId del JWT
       const player = Object.values(game.players).find(p => p.userId === userId);
       if (!player) {
-        // El jugador ya no está en la partida; confirmar igualmente
         socket.emit('lobby:left', { gameId });
         return;
       }
 
-      const characterId = player.characterId;
+      const charId = player.characterId;
 
-      // Eliminar al jugador de la partida en memoria usando el método del modelo (gestiona host transfer)
-      game.removePlayer(characterId);
-      logger.info({ username, gameId, characterId }, '[Socket] Jugador salió del lobby');
-
-      // Si la partida queda vacía, eliminarla de memoria
-      if (Object.keys(game.players).length === 0) {
-        gameStore.removeGame(game.id);
-        logger.info({ gameId }, '[Socket] Partida eliminada de memoria por quedarse sin jugadores');
+      // Aplicar lógica de negocio de abandono (independiente de la fase)
+      const result = abandonGame(game, charId);
+      
+      if (!result.success) {
+        socket.emit('lobby:leave-error', { message: result.message });
+        return;
       }
 
-      // Confirmar al cliente que la operación fue exitosa
+      logger.info({ username, gameId: game.id, charId }, '[Socket] Jugador abandonó vía lobby');
+
+      const roomName = `game_${game.id}`;
+
+      // Notificar a los demás según el resultado
+      if (!result.removed) {
+        // En fases iniciadas, el jugador es marcado como eliminado
+        checkVictory(game, io);
+        io.to(roomName).emit('game:player-eliminated', {
+          characterId: charId,
+          username,
+          reason: 'abandoned'
+        });
+      }
+
+      // Sincronizar estado total a la sala (si hay alguien dentro)
+      syncGameStateToAll(io, game);
+
+      // Si la partida se queda vacía, eliminarla de memoria
+      if (Object.keys(game.players).length === 0) {
+        gameStore.removeGame(game.id);
+        logger.info({ gameId: game.id }, '[Socket] Partida eliminada por falta de jugadores');
+      }
+
+      // Confirmar al cliente que abandona
       socket.emit('lobby:left', { gameId });
+      
+      // Asegurar que sale de la sala si estaba en ella
+      socket.leave(roomName);
     });
 
     // -------------------------------------------------------------------------

@@ -19,7 +19,7 @@ import { config } from '../../config/index.js';
  */
 export function startResearch(game, characterId, researchId, timeWheel) {
   // 1. Validar fase de la partida
-  if (!['preparation', 'war'].includes(game.phase)) {
+  if (!['preparation', 'war', 'end'].includes(game.phase)) {
     return { success: false, message: 'No se puede investigar en esta fase de la partida.' };
   }
 
@@ -256,8 +256,8 @@ export function trainTroop(game, characterId, troopTypeId, timeWheel) {
  */
 export function launchAttack(game, characterId, targetCharacterId, troopIds, timeWheel) {
   // 1. Solo se puede atacar en fase guerra
-  if (game.phase !== 'war') {
-    return { success: false, message: 'Solo se puede atacar durante la fase de guerra.' };
+  if (!['war', 'end'].includes(game.phase)) {
+    return { success: false, message: 'Solo se puede atacar durante las fases de guerra y fin.' };
   }
 
   // 2. Validar atacante

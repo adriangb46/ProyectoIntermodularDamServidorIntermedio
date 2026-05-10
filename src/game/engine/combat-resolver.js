@@ -74,7 +74,7 @@ export function resolveBattle(attacker, defender, attackingTroops, gameData) {
   const finalDefensePower = Math.round(rawDefensePower * CAPITAL_DEFENSE_BONUS);
 
   // --- 4. Aplicar daño al defensor (simultáneo: se calcula sobre el estado inicial) ---
-  const { capitalDamage, troopsDestroyed: defenderTroopsDestroyed } =
+  const { capitalDamage: actualCapitalDamage, troopsDestroyed: defenderTroopsDestroyed, totalTroopDamage: defenderTroopsDamage } =
     _applyDamageToDefender(defendingTroops, defender, finalAttackPower);
 
   // --- 5. Aplicar daño de retorno al atacante (simultáneo) ---
@@ -89,8 +89,9 @@ export function resolveBattle(attacker, defender, attackingTroops, gameData) {
   const attackerSurvivors = attackingTroops.filter(t => t.currentPoints > 0);
 
   // --- 8. Créditos de investigación ganados por el atacante ---
-  //   Se calculan sobre el daño efectivamente infligido al defensor
-  const researchCreditsEarned = Math.floor(finalAttackPower * RESEARCH_CREDITS_RATE);
+  //   Se calculan sobre el daño efectivamente infligido al defensor (War Weariness)
+  const totalDamageDealt = defenderTroopsDamage + actualCapitalDamage;
+  const researchCreditsEarned = Math.floor(totalDamageDealt * RESEARCH_CREDITS_RATE);
 
   // --- 9. Comprobar si el defensor ha sido eliminado ---
   const defenderEliminated = defender.capitalHealth <= 0;
@@ -102,12 +103,13 @@ export function resolveBattle(attacker, defender, attackingTroops, gameData) {
     attackerSurvivors,
     defenderTroopsDestroyed,
     attackerTroopsLost,
-    capitalDamage,
+    capitalDamage: actualCapitalDamage,
     researchCreditsEarned,
     defenderEliminated,
     typeMultiplier,
     finalAttackPower,
     finalDefensePower,
+    totalDamageDealt,
   };
 }
 
@@ -145,15 +147,17 @@ function _getTypeMultiplier(attackerClan, defenderClan) {
  *   Tropas en capital al inicio del combate (snapshot del estado inicial).
  * @param {import('../../models/player').Player} defender
  * @param {number} damageAmount - Daño total que inflige el atacante.
- * @returns {{ capitalDamage: number, troopsDestroyed: import('../../models/troop').Troop[] }}
+ * @returns {{ capitalDamage: number, troopsDestroyed: import('../../models/troop').Troop[], totalTroopDamage: number }}
  */
 function _applyDamageToDefender(defendingTroops, defender, damageAmount) {
   let remainingDamage = damageAmount;
   const troopsDestroyed = [];
+  let totalTroopDamage = 0;
 
   for (const troop of defendingTroops) {
     if (remainingDamage <= 0) break;
-    // takeDamage retorna el daño sobrante que la tropa no pudo absorber
+    const damageToThisTroop = Math.min(troop.currentPoints, remainingDamage);
+    totalTroopDamage += damageToThisTroop;
     remainingDamage = troop.takeDamage(remainingDamage);
     if (troop.isDead()) {
       troopsDestroyed.push(troop);
@@ -161,12 +165,15 @@ function _applyDamageToDefender(defendingTroops, defender, damageAmount) {
   }
 
   // Daño sobrante tras eliminar todas las tropas → impacta en la capital
-  const capitalDamage = remainingDamage > 0 ? remainingDamage : 0;
-  if (capitalDamage > 0) {
-    defender.capitalHealth = Math.max(0, defender.capitalHealth - capitalDamage);
+  const rawCapitalDamage = remainingDamage > 0 ? remainingDamage : 0;
+  let actualCapitalDamage = 0;
+  
+  if (rawCapitalDamage > 0) {
+    actualCapitalDamage = Math.min(defender.capitalHealth, rawCapitalDamage);
+    defender.capitalHealth = Math.max(0, defender.capitalHealth - actualCapitalDamage);
   }
 
-  return { capitalDamage, troopsDestroyed };
+  return { capitalDamage: actualCapitalDamage, troopsDestroyed, totalTroopDamage };
 }
 
 /**
