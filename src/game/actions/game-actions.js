@@ -158,7 +158,7 @@ export function startGame(game, characterId, timeWheel, preparationDurationMs) {
  */
 export function trainTroop(game, characterId, troopTypeId, timeWheel) {
   // 1. Validar fase de la partida
-  if (!['preparation', 'war'].includes(game.phase)) {
+  if (!['preparation', 'war', 'end'].includes(game.phase)) {
     return { success: false, message: 'No se pueden entrenar tropas en esta fase.' };
   }
 

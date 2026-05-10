@@ -112,6 +112,6 @@ function _buildRivalView(player) {
     // Campos tácticos omitidos intencionadamente (Fog of War):
     //   economicCredits, researchCredits, researchInProgress,
     //   trainingQueue, unlockedResearches
-    // Tropas desplegadas del rival: completamente invisibles (se notifican via game:troop-deployed)
+    // Tropas desplegadas del rival: invisibles en el sumario (pero se revela origen y destino al momento del ataque via game:troop-deployed para animaciones)
   };
 }

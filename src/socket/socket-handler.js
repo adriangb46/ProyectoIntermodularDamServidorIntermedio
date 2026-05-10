@@ -387,18 +387,28 @@ export const initSocketHandler = (io, timeWheel) => {
       }
 
       // 6. Confirmar al atacante con el timestamp de llegada
+      const targetPlayer = game.getPlayer(targetCharacterId);
       socket.emit('game:attack-launched', {
         arrivalAt: result.arrivalAt,
         troopCount: troopIds.length,
+        fromPlayer: username,
+        toPlayer: targetPlayer ? targetPlayer.username : 'Desconocido',
+        fromCharacterId: socket.characterId,
+        toCharacterId: targetCharacterId
       });
 
       // Sincronizar estado completo
       syncGameStateToAll(io, game);
 
       // 7. Notificar a toda la sala que hay tropas en movimiento
-      // (Fog of War: no se revela el objetivo ni qué tropas se enviaron)
+      // (Se revela el origen y el destino para que el frontend dibuje las animaciones y el log de batalla)
       io.to(roomName).emit('game:troop-deployed', {
         troopCount: troopIds.length,
+        arrivalAt: result.arrivalAt,
+        fromPlayer: username,
+        toPlayer: targetPlayer ? targetPlayer.username : 'Desconocido',
+        fromCharacterId: socket.characterId,
+        toCharacterId: targetCharacterId
       });
 
       logger.info({ attacker: socket.characterId, target: targetCharacterId, count: troopIds.length }, '[Socket] Ataque lanzado');
