@@ -28,6 +28,10 @@ export const loginController = async (req, res, next) => {
       const rawResponse = await dbConnector.verifyCredentials(username, password);
       dbResponse = rawResponse?.data || rawResponse;
     } catch (err) {
+      if (err.status === 403) {
+        logger.warn({ username }, '[Taquilla] Login denegado: Usuario baneado.');
+        return res.status(403).json({ message: "BANNED_USER" });
+      }
       logger.warn({ username }, '[Taquilla] Login fallido: Credenciales denegadas.');
       return res.status(401).json({ message: "Usuario o contraseña inválidos" });
     }

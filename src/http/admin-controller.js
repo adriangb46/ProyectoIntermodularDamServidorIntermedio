@@ -1,4 +1,5 @@
 import { dbConnector } from '../db/db-connector.js';
+import { redisConnector } from '../db/redis-connector.js';
 import { gameStore } from '../game/state/game-store.js';
 import { logger } from '../utils/logger.js';
 
@@ -55,6 +56,25 @@ export const banUserController = async (req, res) => {
   try {
     const { id } = req.params;
     await dbConnector.banUser(id);
+
+    // 1. Añadir a la lista de baneados en Redis (TTL 2 horas para cubrir expiración de JWTs)
+    // Usamos el ID del usuario como clave en el set de baneados
+    await redisConnector.client.sAdd('banned_users', id);
+    await redisConnector.client.expire('banned_users', 7200); // 2h
+
+    // 2. Localizar y desconectar sockets del usuario
+    const io = req.app.get('io');
+    if (io) {
+      const sockets = await io.fetchSockets();
+      for (const socket of sockets) {
+        if (socket.user?.userId === id) {
+          logger.info({ userId: id, socketId: socket.id }, '[Admin] Desconectando socket de usuario baneado');
+          socket.emit('user:banned', { message: 'Has sido baneado del sistema' });
+          socket.disconnect(true);
+        }
+      }
+    }
+
     res.status(204).send();
   } catch (error) {
     logger.error({ err: error.message, userId: req.params.id }, '[Admin] Error al banear usuario');

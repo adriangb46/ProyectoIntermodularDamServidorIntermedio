@@ -30,6 +30,12 @@ export const socketAuthMiddleware = async (socket, next) => {
       return next(new Error('Autenticación fallida: Token revocado (sesión cerrada)'));
     }
 
+    // 5. Verificar si el usuario está baneado
+    const isBanned = await redisConnector.client.sIsMember('banned_users', decoded.sub);
+    if (isBanned) {
+      return next(new Error('Autenticación fallida: Usuario baneado'));
+    }
+
     // 5. Inyectar los datos del usuario en el socket.
     socket.user = {
       userId: decoded.sub,    // UUID del usuario
@@ -68,6 +74,12 @@ export const httpAuthMiddleware = async (req, res, next) => {
     const blacklisted = await redisConnector.isBlacklisted(decoded.jti);
     if (blacklisted) {
       return res.status(401).json({ message: "No autorizado: Token revocado" });
+    }
+
+    // Verificar si el usuario está baneado
+    const isBanned = await redisConnector.client.sIsMember('banned_users', decoded.sub);
+    if (isBanned) {
+      return res.status(403).json({ message: "Prohibido: Usuario baneado" });
     }
 
     // Inyectar usuario en la request

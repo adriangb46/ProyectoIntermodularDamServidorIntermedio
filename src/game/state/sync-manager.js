@@ -84,6 +84,7 @@ class SyncManager {
     const game = new Game({ id: gameDto.id, maxPlayers: gameDto.maxPlayers });
     game.phase = (stateJson.phase || 'waiting').toLowerCase();
     game.startedAt = stateJson.startedAt || null;
+    game.endedAt = stateJson.endedAt || null;
     game.eventQueue = Array.isArray(stateJson.eventQueue) ? stateJson.eventQueue : [];
 
     // Rehidratar el mapa de jugadores { [characterId]: playerData }
@@ -116,6 +117,7 @@ class SyncManager {
     // El Middle Server usa minúsculas internamente
     game.phase = this._mapStatusToPhase(gameDto.status);
     game.startedAt = gameDto.startedAt || null;
+    game.endedAt = gameDto.endedAt || null;
     game.eventQueue = [];
 
     // Crear un jugador esqueleto por cada participante conocido
@@ -212,12 +214,10 @@ class SyncManager {
    */
   mapGameToAnalyticsSnapshot(game) {
     const playersSnapshot = Object.values(game.players).map(player => {
-      // Calcular tiempo jugado hasta ahora (si la partida ha empezado)
-      if (game.startedAt && !player.stats.timePlayedMs) {
-        player.stats.timePlayedMs = Date.now() - game.startedAt;
-      } else if (game.startedAt) {
-        // Actualizar si ya existía (para volcados periódicos)
-        player.stats.timePlayedMs = Date.now() - game.startedAt;
+      // Calcular tiempo jugado (duración de la partida)
+      if (game.startedAt) {
+        const endTime = game.endedAt || Date.now();
+        player.stats.timePlayedMs = endTime - game.startedAt;
       }
 
       return {

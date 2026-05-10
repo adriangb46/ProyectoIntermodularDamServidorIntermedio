@@ -15,6 +15,7 @@ export class Game {
     this.maxPlayers = maxPlayers; //revisar pasar a constante.
     this.phase = 'waiting';      // Fases: waiting | preparation | war | end | finished
     this.startedAt = null;       // Timestamp de inicio real
+    this.endedAt = null;         // Timestamp de finalización real
     
     // Estado de los participantes indexado por characterId
     // Se usa un objeto plano para facilitar la serialización a JSONB en Postgres
@@ -87,6 +88,10 @@ export class Game {
         player.researchCredits = config.initialResearchCredits;
       }
     }
+
+    if (newPhase === 'finished' && !this.endedAt) {
+      this.endedAt = Date.now();
+    }
   }
 
   /**
@@ -105,6 +110,7 @@ export class Game {
       maxPlayers: this.maxPlayers,
       phase: this.phase.toUpperCase(),
       startedAt: this.startedAt,
+      endedAt: this.endedAt,
       players: playersSerialized,
       eventQueue: this.eventQueue
     };
