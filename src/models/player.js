@@ -38,6 +38,17 @@ export class Player {
     // Actividad actual
     this.researchInProgress = null; // { researchId, completesAt }
     this.trainingQueue = [];        // [{ trainingId, troopTypeId, completesAt }]
+
+    // Estadísticas por partida
+    this.stats = {
+      totalEconomicCreditsEarned: 0,
+      totalResearchCreditsEarned: 0,
+      totalTroopsTrained: 0,
+      totalAttacksLaunched: 0,
+      totalDamageDealt: 0,
+      totalDamageReceived: 0,
+      totalTroopsLost: 0,
+    };
   }
 
   /**
@@ -88,6 +99,7 @@ export class Player {
       unlockedResearches: this.unlockedResearches,
       researchInProgress: this.researchInProgress,
       trainingQueue: this.trainingQueue,
+      stats: this.stats,
       troops: this.troops.map(t => (typeof t.toJSON === 'function' ? t.toJSON() : t))
     };
   }

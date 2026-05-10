@@ -1,4 +1,5 @@
 import { dbConnector } from '../../db/db-connector.js';
+import { syncManager } from '../state/sync-manager.js';
 import { logger } from '../../utils/logger.js';
 
 /**
@@ -96,6 +97,9 @@ function _resolveGameEnd(game, io) {
     gameId: game.id,
     newPhase: 'end',
   });
+
+  // REALIZAR VOLCADOS INTERMEDIOS PARA ASEGURAR ESTADÍSTICAS
+  _performFinalDumps(game);
 }
 
 /**
@@ -133,11 +137,45 @@ function _resolveGameFinished(game, io, winnerCharacterId) {
     .endGame(game.id, { winnerCharacterId })
     .then(() => {
       logger.info({ gameId: game.id }, '[VictoryChecker] DB Server notificado: partida finalizada.');
+      
+      // REALIZAR VOLCADOS FINALES PARA ASEGURAR ESTADÍSTICAS
+      _performFinalDumps(game);
     })
     .catch((err) => {
       logger.error({ 
         gameId: game.id, 
         err: err.message 
       }, '[VictoryChecker] Error al notificar fin de partida al DB Server');
+      
+      // Intentar los volcados incluso si endGame falla (mejor tener datos parciales que nada)
+      _performFinalDumps(game);
     });
+}
+
+/**
+ * Realiza los volcados de estado (PostgreSQL) y analítica (MongoDB) de forma inmediata.
+ * @param {import('../../models/game').Game} game
+ * @private
+ */
+function _performFinalDumps(game) {
+  logger.info({ gameId: game.id }, '[VictoryChecker] Ejecutando volcados forzados (Postgres + MongoDB)');
+
+  // 1. Volcado a PostgreSQL (estado persistente)
+  dbConnector.dumpState(game.id, game.toJSON()).then(() => {
+    logger.debug({ gameId: game.id }, '[VictoryChecker] Dump Postgres forzado completado');
+  }).catch(err => {
+    logger.error({ gameId: game.id, err: err.message }, '[VictoryChecker] Error en dump Postgres forzado');
+  });
+
+  // 2. Volcado a MongoDB (Analíticas / Estadísticas)
+  try {
+    const snapshotDto = syncManager.mapGameToAnalyticsSnapshot(game);
+    dbConnector.publishAnalyticsSnapshot(snapshotDto).then(() => {
+      logger.debug({ gameId: game.id }, '[VictoryChecker] Snapshot MongoDB forzado completado');
+    }).catch(err => {
+      logger.error({ gameId: game.id, err: err.message }, '[VictoryChecker] Error en snapshot MongoDB forzado');
+    });
+  } catch (err) {
+    logger.error({ gameId: game.id, err: err.message }, '[VictoryChecker] Error al mapear analítica para dump forzado');
+  }
 }

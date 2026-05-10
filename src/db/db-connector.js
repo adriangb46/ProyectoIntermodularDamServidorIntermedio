@@ -340,6 +340,12 @@ class DbConnector {
       method: 'GET',
     });
   }
+
+  async getMatchStats(gameId, userId) {
+    return this.fetchWithAuth(`/internal/analytics/game/${gameId}/user/${userId}`, {
+      method: 'GET',
+    });
+  }
 }
 
 // Exportamos como singleton

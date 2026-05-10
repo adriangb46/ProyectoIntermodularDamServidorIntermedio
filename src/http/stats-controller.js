@@ -7,12 +7,19 @@ import { logger } from '../utils/logger.js';
 export const getUserStatsController = async (req, res) => {
   try {
     const { userId } = req.user; // Inyectado por middleware auth
-    const statsResponse = await dbConnector.getUserStats(userId);
-    const stats = statsResponse?.data || statsResponse || {};
+    const { gameId } = req.query;
 
+    let statsResponse;
+    if (gameId) {
+      statsResponse = await dbConnector.getMatchStats(gameId, userId);
+    } else {
+      statsResponse = await dbConnector.getUserStats(userId);
+    }
+
+    const stats = statsResponse?.data || statsResponse || {};
     res.json(stats);
   } catch (error) {
-    logger.error({ err: error.message, userId: req.user?.userId }, '[Stats] Error al obtener estadísticas de usuario');
-    res.status(500).json({ message: 'Error al recuperar tus estadísticas' });
+    logger.error({ err: error.message, userId: req.user?.userId, gameId: req.query?.gameId }, '[Stats] Error al obtener estadísticas');
+    res.status(500).json({ message: 'Error al recuperar las estadísticas' });
   }
 };

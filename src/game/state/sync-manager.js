@@ -224,7 +224,8 @@ class SyncManager {
         deployed: troop.deployed
       })),
       unlockedResearches: player.unlockedResearches,
-      eliminated: player.eliminated
+      eliminated: player.eliminated,
+      stats: player.stats
     }));
 
     return {

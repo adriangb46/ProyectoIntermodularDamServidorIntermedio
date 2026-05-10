@@ -238,6 +238,8 @@ export class TimeWheel {
         if (player.economicCredits > maxCredits) {
           player.economicCredits = maxCredits;
         }
+        // Tracking estadístico
+        player.stats.totalEconomicCreditsEarned += creditsToAdd;
       }
     }
 
@@ -406,6 +408,9 @@ export class TimeWheel {
 
     // Sincronizar estado completo para reflejar la nueva tropa en el capital
     this._syncGameStateToAll(game);
+
+    // Tracking estadístico
+    player.stats.totalTroopsTrained += 1;
   }
 
   /**
@@ -506,6 +511,14 @@ export class TimeWheel {
       damage: result.capitalDamage,
       eliminated: result.defenderEliminated
     }, '[TimeWheel] Batalla resuelta');
+
+    // Tracking estadístico
+    attacker.stats.totalAttacksLaunched += 1;
+    attacker.stats.totalDamageDealt += result.capitalDamage;
+    defender.stats.totalDamageReceived += result.capitalDamage;
+    attacker.stats.totalTroopsLost += result.attackerTroopsLost.length;
+    defender.stats.totalTroopsLost += result.defenderTroopsDestroyed.length;
+    attacker.stats.totalResearchCreditsEarned += result.researchCreditsEarned;
 
     // Notificar el resultado de la batalla a todos los jugadores de la sala
     this.io.to(`game_${game.id}`).emit('game:battle-result', {
