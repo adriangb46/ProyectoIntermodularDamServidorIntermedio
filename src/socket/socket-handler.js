@@ -405,6 +405,7 @@ export const initSocketHandler = (io, timeWheel) => {
       io.to(roomName).emit('game:troop-deployed', {
         troopCount: troopIds.length,
         arrivalAt: result.arrivalAt,
+        totalTravelTimeMs: config.troopTravelTimeMs,
         fromPlayer: username,
         toPlayer: targetPlayer ? targetPlayer.username : 'Desconocido',
         fromCharacterId: socket.characterId,
