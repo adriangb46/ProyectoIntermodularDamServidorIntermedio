@@ -275,11 +275,21 @@ export class TimeWheel {
     game.setPhase('war');
     logger.info({ gameId: game.id }, '[TimeWheel] Fase GUERRA iniciada');
 
+    // Registrar en el log persistente
+    const logEntry = game.addLogEntry({
+      performer: 'Sistema',
+      action: 'Fase GUERRA iniciada',
+      type: 'system'
+    });
+
     // Notificar a todos los clientes conectados en la sala de la partida
     this.io.to(`game_${game.id}`).emit('game:phase-changed', {
       gameId: game.id,
       newPhase: 'WAR',
     });
+    
+    // Enviar el nuevo log
+    this.io.to(`game_${game.id}`).emit('game:new-log', logEntry);
 
     // Programar el primer tick de recursos (intervalo aleatorio según configuración)
     const firstResourceTickDelay = this._randomBetween(this.config.warResourceIntervalMinMs, this.config.warResourceIntervalMaxMs);
@@ -317,10 +327,18 @@ export class TimeWheel {
     game.setPhase('end');
     logger.info({ gameId: game.id }, '[TimeWheel] Fase END (batalla final) iniciada por temporizador');
 
+    const logEntry = game.addLogEntry({
+      performer: 'Sistema',
+      action: 'Fase FINAL iniciada por tiempo',
+      type: 'system'
+    });
+
     this.io.to(`game_${game.id}`).emit('game:phase-changed', {
       gameId: game.id,
       newPhase: 'END',
     });
+
+    this.io.to(`game_${game.id}`).emit('game:new-log', logEntry);
   }
 
   /**
@@ -347,6 +365,17 @@ export class TimeWheel {
 
     logger.info({ characterId, researchId }, '[TimeWheel] Investigación completada');
 
+    // Obtener nombre de la tecnología para el log
+    const tech = gameData[player.clanId]?.technologies.find(t => t.id === researchId);
+    const techName = tech?.name || researchId;
+
+    const logEntry = game.addLogEntry({
+      performer: player.username,
+      action: `Ha completado la investigación: ${techName}`,
+      type: 'research',
+      visibility: characterId // El progreso de investigación es privado
+    });
+
     // Notificar al jugador
     // Notificar al jugador afectado
     if (player.connectedSocketId) {
@@ -355,6 +384,7 @@ export class TimeWheel {
         researchId,
         unlockedResearches: player.unlockedResearches
       });
+      this.io.to(player.connectedSocketId).emit('game:new-log', logEntry);
     }
 
     // Sincronizar estado completo para reflejar el cambio en la cola/investigación
@@ -396,6 +426,24 @@ export class TimeWheel {
 
     logger.info({ characterId, troopTypeId }, '[TimeWheel] Entrenamiento completado');
 
+    // Obtener nombre de la tropa para el log
+    const clan = gameData[player.clanId];
+    let troopInfo = clan?.initialTroops?.find(t => t.id === troopTypeId);
+    if (!troopInfo) {
+      for (const tech of (clan?.technologies || [])) {
+        troopInfo = tech.unlocks?.troops?.find(t => t.id === troopTypeId);
+        if (troopInfo) break;
+      }
+    }
+    const troopName = troopInfo?.name || troopTypeId;
+
+    const logEntry = game.addLogEntry({
+      performer: player.username,
+      action: `Ha terminado de entrenar: ${troopName}`,
+      type: 'train',
+      visibility: characterId // El entrenamiento es privado
+    });
+
     // Notificar al jugador
     // Notificar al jugador afectado
     if (player.connectedSocketId) {
@@ -404,6 +452,7 @@ export class TimeWheel {
         troop: troop.toJSON(),
         trainingQueue: player.trainingQueue
       });
+      this.io.to(player.connectedSocketId).emit('game:new-log', logEntry);
     }
 
     // Sincronizar estado completo para reflejar la nueva tropa en el capital
@@ -521,7 +570,7 @@ export class TimeWheel {
     attacker.stats.totalResearchCreditsEarned += result.researchCreditsEarned;
 
     // Notificar el resultado de la batalla a todos los jugadores de la sala
-    this.io.to(`game_${game.id}`).emit('game:battle-result', {
+    const battleResultPayload = {
       attackerCharacterId,
       attackerUsername: attacker.username,
       targetCharacterId,
@@ -535,7 +584,22 @@ export class TimeWheel {
         current: defender.capitalHealth,
         max: gameData[defender.clanId]?.baseCapitalHealth || this.config.defaultCapitalHealth
       }
+    };
+
+    // Registrar en el log de batalla (Público)
+    const battleLogEntry = game.addLogEntry({
+      performer: attacker.username,
+      action: `Atacó a ${defender.username}: -${result.capitalDamage} HP. ` + 
+              (result.defenderEliminated ? '¡JUGADOR ELIMINADO!' : ''),
+      type: 'attack'
     });
+
+    this.io.to(`game_${game.id}`).emit('game:battle-result', {
+      ...battleResultPayload,
+      battleLogEntry // Incluimos el log entry para que el front lo pinte
+    });
+
+    this.io.to(`game_${game.id}`).emit('game:new-log', battleLogEntry);
 
     // Sincronizar estado completo a todos los clientes (Fog of War)
     // Esto es CRÍTICO para que el frontend vea las tropas actualizadas

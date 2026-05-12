@@ -81,9 +81,17 @@ export function startResearch(game, characterId, researchId, timeWheel) {
     payload: { characterId, researchId }
   }));
 
+  const techName = tech.name || researchId;
+  const logEntry = game.addLogEntry({
+    performer: player.username,
+    action: `Ha iniciado la investigación: ${techName}`,
+    type: 'research',
+    visibility: characterId
+  });
+
   console.log(`[GameActions] ${characterId} inicia investigación: ${researchId}. Completa en ${tech.durationSeconds}s.`);
 
-  return { success: true };
+  return { success: true, logEntry };
 }
 
 /**
@@ -138,13 +146,19 @@ export function startGame(game, characterId, timeWheel, preparationDurationMs) {
     executeAt: warStartsAt,
   }));
 
+  const logEntry = game.addLogEntry({
+    performer: 'Sistema',
+    action: 'La partida ha comenzado',
+    type: 'system'
+  });
+
   const duracionMinutos = Math.round(preparationDurationMs / 60_000);
   console.log(
     `[GameActions] Partida ${game.id} iniciada por ${characterId}. ` +
     `Fase PREPARACIÓN → GUERRA en ${duracionMinutos} min (executeAt: ${warStartsAt}).`
   );
 
-  return { success: true, warStartsAt };
+  return { success: true, warStartsAt, logEntry };
 }
 
 /**
@@ -233,9 +247,16 @@ export function trainTroop(game, characterId, troopTypeId, timeWheel) {
     }
   }));
 
+  const logEntry = game.addLogEntry({
+    performer: player.username,
+    action: `Ha puesto en cola: ${troopData.name}`,
+    type: 'train',
+    visibility: characterId
+  });
+
   console.log(`[GameActions] ${characterId} recluta: ${troopTypeId}. Completa en ${Math.round((completesAt - now) / 1000)}s.`);
 
-  return { success: true, completesAt };
+  return { success: true, completesAt, logEntry };
 }
 /**
  * Despliega un conjunto de tropas del jugador hacia la capital de otro jugador.
@@ -330,12 +351,18 @@ export function launchAttack(game, characterId, targetCharacterId, troopIds, tim
     },
   }));
 
+  const logEntry = game.addLogEntry({
+    performer: attacker.username,
+    action: `Lanza ataque contra ${target.username} con ${troopsToSend.length} tropas`,
+    type: 'attack'
+  });
+
   console.log(
     `[GameActions] ${characterId} lanza ataque contra ${targetCharacterId} ` +
     `con ${troopsToSend.length} tropa(s). Llegada en ${config.troopTravelTimeMs / 1000}s (arrivalAt: ${arrivalAt}).`
   );
 
-  return { success: true, arrivalAt };
+  return { success: true, arrivalAt, logEntry };
 }
 
 /**

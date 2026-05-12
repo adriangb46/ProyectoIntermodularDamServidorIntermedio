@@ -52,7 +52,7 @@ export const config = Object.freeze({
   // Combate
   typeAdvantageMultiplier: Number(process.env.TYPE_ADVANTAGE_MULTIPLIER) || 1.5,
   capitalDefenseBonus: Number(process.env.CAPITAL_DEFENSE_BONUS) || 1.1,
-  researchCreditsRate: Number(process.env.RESEARCH_CREDITS_RATE) || 0.1,
+  researchCreditsRate: Number(process.env.RESEARCH_CREDITS_RATE) || 1,
 
   // Generación de Recursos (Tick)
   warResourcePercentage: Number(process.env.WAR_RESOURCE_PERCENTAGE) || 20,

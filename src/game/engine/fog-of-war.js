@@ -30,6 +30,10 @@ export function buildGameView(game, viewerCharacterId) {
     startedAt:  game.startedAt,
     maxPlayers: game.maxPlayers,
     players:    {},
+    // Log de batalla filtrado por Fog of War
+    battleLog:  (game.battleLog || []).filter(entry => 
+      entry.visibility === 'public' || entry.visibility === viewerCharacterId
+    )
   };
 
   for (const [charId, player] of Object.entries(game.players)) {

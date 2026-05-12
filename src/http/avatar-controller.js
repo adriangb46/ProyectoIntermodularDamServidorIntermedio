@@ -80,3 +80,30 @@ export const avatarUploadController = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Controlador para actualizar el avatar usando una URL (para avatares predeterminados).
+ */
+export const avatarUpdateUrlController = async (req, res, next) => {
+  try {
+    const { avatarUrl } = req.body;
+
+    if (!avatarUrl) {
+      return res.status(400).json({ message: 'No se proporcionó la URL del avatar' });
+    }
+
+    // Persistir la URL del avatar en PostgreSQL via DB Server
+    try {
+      await dbConnector.updateAvatar(req.user.userId, avatarUrl);
+    } catch (err) {
+      logger.error({ username: req.user.username, err: err.message }, '[Avatar] Error al persistir URL de avatar predefinido');
+      return res.status(500).json({ message: 'Error al guardar el avatar' });
+    }
+
+    logger.info({ username: req.user.username, avatarUrl }, '[Avatar] Avatar predefinido actualizado');
+
+    return res.status(200).json({ avatarUrl });
+  } catch (error) {
+    next(error);
+  }
+};

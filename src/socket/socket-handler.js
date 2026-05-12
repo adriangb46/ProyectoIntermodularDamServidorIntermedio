@@ -327,6 +327,11 @@ export const initSocketHandler = (io, timeWheel) => {
         warStartsAt: result.warStartsAt,
       });
 
+      // Enviar el log de inicio
+      if (result.logEntry) {
+        io.to(roomName).emit('game:new-log', result.logEntry);
+      }
+
       // Sincronizar estado completo
       syncGameStateToAll(io, game);
 
@@ -413,6 +418,11 @@ export const initSocketHandler = (io, timeWheel) => {
         toCharacterId: targetCharacterId
       });
 
+      // Enviar el log del ataque
+      if (result.logEntry) {
+        io.to(roomName).emit('game:new-log', result.logEntry);
+      }
+
       logger.info({ attacker: socket.characterId, target: targetCharacterId, count: troopIds.length }, '[Socket] Ataque lanzado');
     });
 
@@ -471,6 +481,11 @@ export const initSocketHandler = (io, timeWheel) => {
         trainingQueue: player.trainingQueue,
         economicCredits: player.economicCredits,
       });
+
+      // Enviar el log del entrenamiento (Privado)
+      if (result.logEntry && player.connectedSocketId) {
+        io.to(player.connectedSocketId).emit('game:new-log', result.logEntry);
+      }
 
       // Sincronizar estado completo
       syncGameStateToAll(io, game);
@@ -532,6 +547,11 @@ export const initSocketHandler = (io, timeWheel) => {
         researchInProgress: player.researchInProgress,
         researchCredits: player.researchCredits,
       });
+
+      // Enviar el log de la investigación (Privado)
+      if (result.logEntry && player.connectedSocketId) {
+        io.to(player.connectedSocketId).emit('game:new-log', result.logEntry);
+      }
 
       // Sincronizar estado completo
       syncGameStateToAll(io, game);
@@ -698,8 +718,20 @@ export const initSocketHandler = (io, timeWheel) => {
       const roomName = `game_${gameId}`;
       if (!socket.rooms.has(roomName)) return; // Validar que el socket pertenece a la sala
 
-      // Retransmitir a toda la sala
-      io.to(roomName).emit('game:new-log', logEntry);
+      // 1. Persistir el log en el servidor para que reconexiones lo vean
+      const game = gameStore.getGame(gameId) || gameStore.getGameByShortId(gameId);
+      if (game) {
+        // Aseguramos que el log tenga ID y visibilidad pública si no los tiene
+        const persistedEntry = game.addLogEntry({
+          performer: logEntry.performer || username,
+          action: logEntry.action,
+          type: logEntry.type || 'system',
+          visibility: 'public'
+        });
+        
+        // 2. Retransmitir a toda la sala el log ya persistido (con su ID real)
+        io.to(roomName).emit('game:new-log', persistedEntry);
+      }
     });
 
     // -------------------------------------------------------------------------

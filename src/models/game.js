@@ -24,6 +24,10 @@ export class Game {
     // Cola de eventos cronometrados (Time Wheel)
     // En una implementación real, esto podría ser un MinHeap para eficiencia
     this.eventQueue = [];
+
+    // Log de batalla (Historial de eventos significativos)
+    // Se persiste durante la sesión para que reconexiones recuperen el historial
+    this.battleLog = [];
   }
 
   /**
@@ -112,7 +116,43 @@ export class Game {
       startedAt: this.startedAt,
       endedAt: this.endedAt,
       players: playersSerialized,
-      eventQueue: this.eventQueue
+      eventQueue: this.eventQueue,
+      battleLog: this.battleLog
     };
+  }
+
+  /**
+   * Añade una entrada al log de batalla de la partida.
+   * Genera automáticamente el ID y el timestamp formateado (HH:mm).
+   * 
+   * @param {Object} entry
+   * @param {string} entry.performer - Nombre del jugador que realiza la acción o 'Sistema'.
+   * @param {string} entry.action - Descripción de la acción realizada.
+   * @param {'attack'|'train'|'research'|'system'} entry.type - Categoría del log.
+   * @param {string} [entry.visibility='public'] - 'public' o characterId específico para Fog of War.
+   */
+  addLogEntry({ performer, action, type, visibility = 'public' }) {
+    const now = new Date();
+    const timestamp = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    
+    const newEntry = {
+      id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      performer,
+      action,
+      timestamp,
+      type,
+      visibility
+    };
+
+    // Añadir al inicio para que el frontend reciba el historial ordenado por novedad (opcional)
+    // Sin embargo, para consistencia con el sync, lo añadimos al final y el front decide el orden.
+    this.battleLog.push(newEntry);
+    
+    // Limitar tamaño del log para evitar fugas de memoria en partidas extremadamente largas
+    if (this.battleLog.length > 200) {
+      this.battleLog.shift();
+    }
+
+    return newEntry;
   }
 }

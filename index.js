@@ -29,11 +29,13 @@ app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
     const duration = Date.now() - start;
-    // Sanitizar body para logs (no imprimir contraseñas)
+    // Sanitizar body para logs (no imprimir secretos — security.md §3)
+    const sensitiveFields = ['password', 'currentPassword', 'newPassword', 'secret', 'token'];
     const sanitizedBody = req.body ? { ...req.body } : {};
-    if (sanitizedBody.password) sanitizedBody.password = '[REDACTED]';
-    if (sanitizedBody.password) sanitizedBody.password = '[REDACTED]';
-    if (sanitizedBody.secret) sanitizedBody.secret = '[REDACTED]';
+    
+    sensitiveFields.forEach(field => {
+      if (sanitizedBody[field]) sanitizedBody[field] = '[REDACTED]';
+    });
     
     logger.info({
       method: req.method,
