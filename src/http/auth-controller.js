@@ -132,8 +132,52 @@ export const logoutController = async (req, res, next) => {
     await redisConnector.blacklist(jti, ttlSeconds);
 
     logger.info({ jti }, '[Taquilla] Logout exitoso. Token invalidado en Redis.');
-
+    
     return res.status(200).json({ message: "Sesión cerrada correctamente" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Controlador de Renovación de Token (Silent Refresh)
+ * Genera un nuevo JWT para un usuario ya autenticado, siempre que siga siendo válido en la DB.
+ */
+export const refreshController = async (req, res, next) => {
+  try {
+    const { userId, username } = req.user;
+
+    // 1. Verificar estado actual del usuario en la DB (seguridad extra)
+    let dbUser;
+    try {
+      const rawResponse = await dbConnector.getUser(userId);
+      dbUser = rawResponse?.data || rawResponse;
+    } catch (err) {
+      logger.warn({ userId, err: err.message }, '[Taquilla] Refresh fallido: Usuario no encontrado en DB');
+      return res.status(401).json({ message: "Sesión inválida" });
+    }
+
+    if (dbUser.isBanned) {
+      logger.warn({ userId }, '[Taquilla] Refresh denegado: Usuario baneado');
+      return res.status(403).json({ message: "BANNED_USER" });
+    }
+
+    // 2. Emitir un nuevo token fresco
+    const token = jwt.sign(
+      {
+        sub: dbUser.id,
+        username: dbUser.username,
+        role: dbUser.role,
+        jti: crypto.randomUUID()
+      },
+      config.jwtSecret,
+      { expiresIn: '2h' }
+    );
+
+    logger.info({ username }, '[Taquilla] Token renovado proactivamente');
+
+    return res.status(200).json({ token });
+
   } catch (error) {
     next(error);
   }

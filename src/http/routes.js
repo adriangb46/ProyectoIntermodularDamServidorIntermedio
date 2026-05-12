@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { loginController, registerController, logoutController } from './auth-controller.js';
+import { loginController, registerController, logoutController, refreshController } from './auth-controller.js';
 import { avatarUploadController, avatarUpdateUrlController } from './avatar-controller.js';
 import { getGameAvailabilityController } from './games-controller.js';
 import { getProfileController, changePasswordController, updateEmailController } from './profile-controller.js';
@@ -28,6 +28,7 @@ httpRouter.get('/games/:code/availability', getGameAvailabilityController);
 
 // Rutas protegidas
 httpRouter.post('/logout', httpAuthMiddleware, logoutController);
+httpRouter.post('/auth/refresh', httpAuthMiddleware, refreshController);
 httpRouter.post('/avatar', httpAuthMiddleware, upload.single('avatar'), avatarUploadController);
 httpRouter.put('/avatar/url', httpAuthMiddleware, avatarUpdateUrlController);
 httpRouter.get('/profile', httpAuthMiddleware, getProfileController);
