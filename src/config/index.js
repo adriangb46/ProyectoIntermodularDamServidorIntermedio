@@ -46,6 +46,22 @@ export const config = Object.freeze({
   // --- Configuración de Redis ---
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
 
+  // --- Mecánicas de Juego (Equilibrio) ---
+  defaultCapitalHealth: Number(process.env.DEFAULT_CAPITAL_HEALTH) || 3000,
+  
+  // Combate
+  typeAdvantageMultiplier: Number(process.env.TYPE_ADVANTAGE_MULTIPLIER) || 1.5,
+  capitalDefenseBonus: Number(process.env.CAPITAL_DEFENSE_BONUS) || 1.1,
+  researchCreditsRate: Number(process.env.RESEARCH_CREDITS_RATE) || 0.1,
+
+  // Generación de Recursos (Tick)
+  warResourcePercentage: Number(process.env.WAR_RESOURCE_PERCENTAGE) || 20,
+  warResourceIntervalMinMs: Number(process.env.WAR_RESOURCE_INTERVAL_MIN_MS) || 30_000,
+  warResourceIntervalMaxMs: Number(process.env.WAR_RESOURCE_INTERVAL_MAX_MS) || 60_000,
+  
+  endResourcePercentage: Number(process.env.END_RESOURCE_PERCENTAGE) || 15,
+  endResourceIntervalMs: Number(process.env.END_RESOURCE_INTERVAL_MS) || 20_000,
+
   // --- Configuración de MinIO (S3) ---
   minioEndpoint: process.env.MINIO_ENDPOINT || 'http://localhost:9000',
   minioAccessKey: process.env.MINIO_ACCESS_KEY,

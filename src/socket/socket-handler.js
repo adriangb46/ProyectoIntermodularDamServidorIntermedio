@@ -9,6 +9,7 @@ import { Player } from '../models/player.js';
 import { Game } from '../models/game.js';
 import { logger } from '../utils/logger.js';
 import { sanitizeInput } from '../utils/sanitizer.js';
+import { gameData } from '../config/game-data-loader.js';
 
 /**
  * Envía el estado actualizado de la partida a todos los jugadores conectados,
@@ -119,7 +120,7 @@ export const initSocketHandler = (io, timeWheel) => {
             player = new Player({
               characterId: character.id,
               userId, username, clanId: realClanId,
-              capitalHealth: 3000, // Salud base MVP
+              capitalHealth: gameData[realClanId]?.baseCapitalHealth || config.defaultCapitalHealth,
               isHost: false
             });
             game.addPlayer(player);
@@ -187,7 +188,7 @@ export const initSocketHandler = (io, timeWheel) => {
         const hostPlayer = new Player({
           characterId: character.id,
           userId, username, clanId,
-          capitalHealth: 3000,
+          capitalHealth: gameData[clanId]?.baseCapitalHealth || config.defaultCapitalHealth,
           isHost: true
         });
         newGame.addPlayer(hostPlayer);

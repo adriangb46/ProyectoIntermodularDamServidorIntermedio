@@ -222,11 +222,11 @@ export class TimeWheel {
     let nextTickDelay = 0;
 
     if (game.phase === 'war') {
-      percentage = 20;
-      nextTickDelay = this._randomBetween(30_000, 60_000);
+      percentage = this.config.warResourcePercentage;
+      nextTickDelay = this._randomBetween(this.config.warResourceIntervalMinMs, this.config.warResourceIntervalMaxMs);
     } else if (game.phase === 'end') {
-      percentage = 15;
-      nextTickDelay = 20_000;
+      percentage = this.config.endResourcePercentage;
+      nextTickDelay = this.config.endResourceIntervalMs;
     }
 
     const creditsToAdd = Math.floor((maxCredits * percentage) / 100);
@@ -281,8 +281,8 @@ export class TimeWheel {
       newPhase: 'WAR',
     });
 
-    // Programar el primer tick de recursos (intervalo aleatorio 30-60s según arquitectura)
-    const firstResourceTickDelay = this._randomBetween(30_000, 60_000);
+    // Programar el primer tick de recursos (intervalo aleatorio según configuración)
+    const firstResourceTickDelay = this._randomBetween(this.config.warResourceIntervalMinMs, this.config.warResourceIntervalMaxMs);
     this.scheduleEvent(game.id, new GameEvent({
       gameId: game.id,
       type: 'RESOURCE_TICK',
@@ -533,7 +533,7 @@ export class TimeWheel {
       // Añadimos la salud actual para que el frontend pueda actualizar sus barras de vida sin esperar al sync
       characterHealth: {
         current: defender.capitalHealth,
-        max: 3000 // TODO: Obtener del modelo si fuera dinámico
+        max: gameData[defender.clanId]?.baseCapitalHealth || this.config.defaultCapitalHealth
       }
     });
 

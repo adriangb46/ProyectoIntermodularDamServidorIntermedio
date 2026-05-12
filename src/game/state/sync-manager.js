@@ -1,9 +1,10 @@
+import { Troop } from '../../models/troop.js';
+import { logger } from '../../utils/logger.js';
+import { config } from '../../config/index.js';
 import { dbConnector } from '../../db/db-connector.js';
 import { gameStore } from './game-store.js';
 import { Game } from '../../models/game.js';
 import { Player } from '../../models/player.js';
-import { Troop } from '../../models/troop.js';
-import { logger } from '../../utils/logger.js';
 
 /**
  * Orquestador encargado de mantener la sincronización entre el estado
@@ -134,7 +135,7 @@ class SyncManager {
           characterId,
           userId: null,
           clanId: null,
-          capitalHealth: 3000, // Salud base MVP
+          capitalHealth: config.defaultCapitalHealth, // Salud base MVP
           isHost: i === 0      // El primero en unirse es el host
         });
         player.eliminated = !!participant.eliminated;

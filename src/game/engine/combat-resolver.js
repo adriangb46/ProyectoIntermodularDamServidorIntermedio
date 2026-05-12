@@ -14,17 +14,19 @@
  * Toda la comunicación y persistencia la gestiona el llamador (time-wheel.js).
  */
 
+import { config } from '../../config/index.js';
+
 /** Multiplicador de daño cuando el atacante tiene ventaja de tipo sobre el defensor. */
-const TYPE_ADVANTAGE_MULTIPLIER = 1.5;
+const TYPE_ADVANTAGE_MULTIPLIER = config.typeAdvantageMultiplier;
 
 /** Bono de defensa aplicado al poder del defensor por defender su propia capital. */
-const CAPITAL_DEFENSE_BONUS = 1.1;
+const CAPITAL_DEFENSE_BONUS = config.capitalDefenseBonus;
 
 /**
  * Porcentaje del daño total infligido al defensor que se convierte en créditos
- * de investigación para el atacante. El valor 0.1 equivale al 10%.
+ * de investigación para el atacante.
  */
-const RESEARCH_CREDITS_RATE = 0.1;
+const RESEARCH_CREDITS_RATE = config.researchCreditsRate;
 
 // =============================================================================
 // Función pública
