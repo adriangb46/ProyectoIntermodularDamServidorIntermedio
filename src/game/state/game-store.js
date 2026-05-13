@@ -10,6 +10,12 @@ class GameStore {
      * @type {Map<string, import('../../models/game').Game>} 
      */
     this.games = new Map();
+
+    /**
+     * Log de partidas finalizadas para métricas (ID y timestamp).
+     * @type {{id: string, finishedAt: number}[]}
+     */
+    this.finishedGamesLog = [];
   }
 
   /**
@@ -71,11 +77,40 @@ class GameStore {
   }
 
   /**
+   * Registra una partida como finalizada para métricas de administración.
+   * @param {string} id 
+   */
+  recordFinishedGame(id) {
+    this.finishedGamesLog.push({ id, finishedAt: Date.now() });
+    // Mantener solo la última hora para no saturar memoria
+    this._cleanupFinishedLog();
+  }
+
+  /**
+   * Cuenta cuántas partidas han finalizado en los últimos 60 minutos.
+   * @returns {number}
+   */
+  countFinishedGamesInLastHour() {
+    this._cleanupFinishedLog();
+    return this.finishedGamesLog.length;
+  }
+
+  /**
+   * Elimina registros de partidas finalizadas hace más de una hora.
+   * @private
+   */
+  _cleanupFinishedLog() {
+    const oneHourAgo = Date.now() - 3600000;
+    this.finishedGamesLog = this.finishedGamesLog.filter(g => g.finishedAt > oneHourAgo);
+  }
+
+  /**
    * Limpia todas las partidas de memoria.
    * Uso principal en tests.
    */
   clear() {
     this.games.clear();
+    this.finishedGamesLog = [];
   }
 }
 

@@ -7,7 +7,7 @@ import { getProfileController, changePasswordController, updateEmailController }
 import { getAdminStatsController, listUsersController, banUserController, unbanUserController } from './admin-controller.js';
 import { getUserStatsController } from './stats-controller.js';
 import { httpAuthMiddleware, roleMiddleware } from '../middleware/auth.js';
-import { loginLimiter, registerLimiter } from '../middleware/rate-limiter.js';
+import { loginLimiter, registerLimiter, publicApiLimiter } from '../middleware/rate-limiter.js';
 
 export const httpRouter = Router();
 
@@ -24,7 +24,7 @@ const upload = multer({
 // Rutas públicas (con rate limiting — security.md §3)
 httpRouter.post('/login', loginLimiter, loginController);
 httpRouter.post('/register', registerLimiter, registerController);
-httpRouter.get('/games/:code/availability', getGameAvailabilityController);
+httpRouter.get('/games/:code/availability', publicApiLimiter, getGameAvailabilityController);
 
 // Rutas protegidas
 httpRouter.post('/logout', httpAuthMiddleware, logoutController);

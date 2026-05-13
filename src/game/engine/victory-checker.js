@@ -1,5 +1,6 @@
 import { dbConnector } from '../../db/db-connector.js';
 import { syncManager } from '../state/sync-manager.js';
+import { gameStore } from '../state/game-store.js';
 import { logger } from '../../utils/logger.js';
 
 /**
@@ -119,6 +120,7 @@ function _resolveGameFinished(game, io, winnerCharacterId) {
   }
 
   game.setPhase('finished');
+  gameStore.recordFinishedGame(game.id);
 
   logger.info({ 
     gameId: game.id, 

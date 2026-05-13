@@ -1,37 +1,63 @@
 import { dbConnector } from '../db/db-connector.js';
 import { redisConnector } from '../db/redis-connector.js';
+import os from 'os';
 import { gameStore } from '../game/state/game-store.js';
 import { logger } from '../utils/logger.js';
 
 /**
- * Devuelve estadísticas globales para el dashboard de administrador.
- * Combina datos persistentes de la DB con métricas en vivo de la memoria del Middle.
+ * Obtiene estadísticas consolidadas para el Panel de Administrador.
+ * Combina datos persistentes de la DB con métricas en tiempo real del Middle.
+ * 
+ * @param {import('express').Request} req 
+ * @param {import('express').Response} res 
  */
 export const getAdminStatsController = async (req, res) => {
   try {
-    // 1. Obtener datos de la DB
-    const dbStatsResponse = await dbConnector.getAdminStats();
-    const dbStats = dbStatsResponse?.data || dbStatsResponse || {};
+    // 1. Obtener estadísticas persistentes del DB Server
+    let dbStats = { totalUsers: 0, totalGames: 0, bannedUsers: 0 };
+    try {
+      const response = await dbConnector.getAdminStats();
+      dbStats = response?.data || response || dbStats;
+    } catch (err) {
+      logger.error({ err: err.message }, '[Admin] Error al obtener estadísticas del DB Server');
+      // Continuamos con valores por defecto para no bloquear el panel entero
+    }
 
-    // 2. Obtener métricas en vivo
-    const activeUsers = req.app.get('io')?.engine.clientsCount || 0;
+    // 2. Obtener métricas en tiempo real de la memoria del Middle Server
+    const io = req.app.get('io');
+    const activeUsers = io ? io.engine.clientsCount : 0;
     const activeGames = gameStore.getAll().length;
+    const finishedGamesLastHour = gameStore.countFinishedGamesInLastHour();
 
-    // TODO: finishedGamesLastHour y serverLoad podrían calcularse con más detalle
-    const monitoringMetrics = {
+    // 3. Obtener métricas del sistema (Carga del servidor)
+    // Usamos os.loadavg() que da la carga media de 1, 5 y 15 min.
+    // Lo normalizamos a un porcentaje aproximado (0-100%) basado en el número de CPUs.
+    const cpus = os.cpus().length;
+    const load1min = os.loadavg()[0];
+    const serverLoad = Math.min(Math.round((load1min / cpus) * 100), 100);
+
+    const stats = {
+      // De DB Server
+      totalUsers: dbStats.totalUsers || 0,
+      totalGames: dbStats.totalGames || 0,
+      bannedUsers: dbStats.bannedUsers || 0,
+      // De Middle Server (Memoria)
       activeUsers,
       activeGames,
-      finishedGamesLastHour: 0, 
-      serverLoad: Math.round(process.cpuUsage().user / 100000) % 100 // Dummy load
+      finishedGamesLastHour,
+      serverLoad
     };
 
-    res.json({
-      globalStats: dbStats,
-      monitoringMetrics
+    return res.json({
+      status: 'success',
+      data: stats
     });
-  } catch (error) {
-    logger.error({ err: error.message }, '[Admin] Error al obtener estadísticas');
-    res.status(500).json({ message: 'Error al obtener estadísticas del sistema' });
+  } catch (err) {
+    logger.error({ err: err.message }, '[Admin] Fallo crítico en getAdminStatsController');
+    return res.status(500).json({
+      status: 'error',
+      message: 'Fallo al recuperar estadísticas de administración'
+    });
   }
 };
 

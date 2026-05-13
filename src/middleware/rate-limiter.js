@@ -61,6 +61,17 @@ export const registerLimiter = createRateLimiter({
 });
 
 /**
+ * Rate limiter para endpoints públicos generales (ej: disponibilidad de partida).
+ * 30 intentos / 1 minuto por IP.
+ */
+export const publicApiLimiter = createRateLimiter({
+  prefix: 'public',
+  windowMs: 1 * 60 * 1000, // 1 minuto
+  max: 30,
+  message: 'Demasiadas peticiones. Inténtalo de nuevo más tarde.',
+});
+
+/**
  * Rate limiter para el evento Socket.IO join_game.
  * Como express-rate-limit no aplica directamente a sockets,
  * este se implementa como verificación manual usando Redis INCR+EXPIRE.

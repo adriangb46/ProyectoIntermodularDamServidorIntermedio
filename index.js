@@ -77,6 +77,9 @@ const io = new Server(httpServer, {
   }
 });
 
+// Compartir la instancia de io con Express para acceder desde controladores HTTP
+app.set('io', io);
+
 // 3. Conectar el Middleware de Seguridad a Socket.IO
 io.use(socketAuthMiddleware);
 
