@@ -184,12 +184,13 @@ class DbConnector {
       throw error;
     }
 
-    // Retornamos null para 204 No Content
+    // Retornamos null para 204 No Content o cualquier respuesta exitosa vacía
     if (response.status === 204) {
       return null;
     }
 
-    return response.json();
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
   }
 
   // --- Endpoints de Usuarios ---

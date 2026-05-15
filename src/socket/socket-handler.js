@@ -12,6 +12,9 @@ import { sanitizeInput } from '../utils/sanitizer.js';
 import { gameData } from '../config/game-data-loader.js';
 
 /**
+ * 
+ * Si usas socket.to('sala').emit(...): Envía el mensaje a todos en esa sala MENOS a ti mismo (al socket que está enviando).
+ * Si usas io.to('sala').emit(...): Envía el mensaje a TODOS en esa sala, incluido tú.
  * Envía el estado actualizado de la partida a todos los jugadores conectados,
  * aplicando las reglas de Fog of War de forma individualizada.
  *
@@ -26,6 +29,21 @@ export const syncGameStateToAll = (io, game) => {
         ...view, 
         myCharacterId: player.characterId 
       });
+    }
+  }
+};
+
+/**
+ * Abandona todas las salas de juego que empiecen por 'game_' para un socket.
+ * Esto evita que un usuario reciba eventos de múltiples partidas simultáneamente.
+ *
+ * @param {import('socket.io').Socket} socket
+ */
+const leaveAllGameRooms = (socket) => {
+  for (const room of socket.rooms) {
+    if (room.startsWith('game_')) {
+      socket.leave(room);
+      logger.info({ socketId: socket.id, room }, '[Socket] Abandonando sala de partida previa');
     }
   }
 };
@@ -139,6 +157,7 @@ export const initSocketHandler = (io, timeWheel) => {
           
           // Unirse a la sala usando el ID real de la partida (UUID completo)
           const realRoomName = `game_${game.id}`;
+          leaveAllGameRooms(socket);
           socket.join(realRoomName);
           
           logger.info({ username, roomName: realRoomName }, '[Socket] Jugador se ha unido a la sala');
@@ -196,6 +215,7 @@ export const initSocketHandler = (io, timeWheel) => {
 
         // 4. Unirse a la sala y confirmar
         const roomName = `game_${gameDto.id}`;
+        leaveAllGameRooms(socket);
         socket.join(roomName);
         socket.characterId = character.id;
         hostPlayer.connectedSocketId = socket.id;
@@ -258,6 +278,8 @@ export const initSocketHandler = (io, timeWheel) => {
         socket.emit('game:error', { message: 'Fallo al listar partidas' });
       }
     });
+
+    //añadir eventos nuevos aqui(no meter en rueda de tiempo, solo eventos programados)
 
     // -------------------------------------------------------------------------
     // Evento: game:availability
@@ -395,6 +417,7 @@ export const initSocketHandler = (io, timeWheel) => {
       // 6. Confirmar al atacante con el timestamp de llegada
       const targetPlayer = game.getPlayer(targetCharacterId);
       socket.emit('game:attack-launched', {
+        gameId: game.id,
         arrivalAt: result.arrivalAt,
         troopCount: troopIds.length,
         fromPlayer: username,
@@ -409,6 +432,7 @@ export const initSocketHandler = (io, timeWheel) => {
       // 7. Notificar a toda la sala que hay tropas en movimiento
       // (Se revela el origen y el destino para que el frontend dibuje las animaciones y el log de batalla)
       io.to(roomName).emit('game:troop-deployed', {
+        gameId: game.id,
         troopCount: troopIds.length,
         arrivalAt: result.arrivalAt,
         totalTravelTimeMs: config.troopTravelTimeMs,
@@ -610,6 +634,7 @@ export const initSocketHandler = (io, timeWheel) => {
         // En fases iniciadas (preparation, war, end), el jugador es marcado como eliminado
         checkVictory(game, io);
         io.to(roomName).emit('game:player-eliminated', {
+          gameId: game.id,
           characterId: charId,
           username,
           reason: 'abandoned'
@@ -683,6 +708,7 @@ export const initSocketHandler = (io, timeWheel) => {
         // En fases iniciadas, el jugador es marcado como eliminado
         checkVictory(game, io);
         io.to(roomName).emit('game:player-eliminated', {
+          gameId: game.id,
           characterId: charId,
           username,
           reason: 'abandoned'
