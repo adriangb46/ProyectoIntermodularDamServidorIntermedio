@@ -15,13 +15,15 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "npm run test",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "start": "node index.js",
     "dev": "nodemon index.js",
     "verify-clans": "node scripts/verify-clans-sync.js"
   },
   "devDependencies": {
     "@compodoc/compodoc": "^1.2.1",
+    "@jest/globals": "^30.4.1",
+    "jest": "^30.4.2",
     "nodemon": "^3.1.0"
   },
   "dependencies": {
