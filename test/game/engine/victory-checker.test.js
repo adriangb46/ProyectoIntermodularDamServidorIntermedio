@@ -6,7 +6,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 
 // --- Mocks de dependencias externas ---
-jest.unstable_mockModule('../../db/db-connector.js', () => ({
+jest.unstable_mockModule('../../../src/db/db-connector.js', () => ({
   dbConnector: {
     endGame: jest.fn().mockResolvedValue({}),
     dumpState: jest.fn().mockResolvedValue({}),
@@ -14,19 +14,19 @@ jest.unstable_mockModule('../../db/db-connector.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../state/sync-manager.js', () => ({
+jest.unstable_mockModule('../../../src/game/state/sync-manager.js', () => ({
   syncManager: {
     mapGameToAnalyticsSnapshot: jest.fn().mockReturnValue({}),
   },
 }));
 
-jest.unstable_mockModule('../state/game-store.js', () => ({
+jest.unstable_mockModule('../../../src/game/state/game-store.js', () => ({
   gameStore: {
     recordFinishedGame: jest.fn(),
   },
 }));
 
-jest.unstable_mockModule('../../utils/logger.js', () => ({
+jest.unstable_mockModule('../../../src/utils/logger.js', () => ({
   logger: {
     info: jest.fn(),
     debug: jest.fn(),
@@ -36,9 +36,9 @@ jest.unstable_mockModule('../../utils/logger.js', () => ({
 }));
 
 // Importaciones dinámicas DESPUÉS de los mocks
-const { checkVictory } = await import('./victory-checker.js');
-const { dbConnector } = await import('../../db/db-connector.js');
-const { gameStore } = await import('../state/game-store.js');
+const { checkVictory } = await import('../../../src/game/engine/victory-checker.js');
+const { dbConnector } = await import('../../../src/db/db-connector.js');
+const { gameStore } = await import('../../../src/game/state/game-store.js');
 
 // ---------------------------------------------------------------------------
 // Helpers

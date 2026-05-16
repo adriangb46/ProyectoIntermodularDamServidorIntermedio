@@ -4,7 +4,7 @@
  *        recordFinishedGame, countFinishedGamesInLastHour.
  */
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { gameStore } from './game-store.js';
+import { gameStore } from '../../../src/game/state/game-store.js';
 
 /** Stub mínimo de partida para los tests */
 function makeGameStub(id) {

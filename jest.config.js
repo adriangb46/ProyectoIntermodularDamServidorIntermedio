@@ -3,6 +3,6 @@ export default {
   testEnvironment: 'node',
   // Sin transform: usamos ESM nativo con --experimental-vm-modules
   transform: {},
-  testMatch: ['**/src/**/*.test.js'],
+  testMatch: ['**/test/**/*.test.js'],
   verbose: true,
 };

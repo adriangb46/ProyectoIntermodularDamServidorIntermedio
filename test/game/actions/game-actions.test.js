@@ -13,7 +13,7 @@ const mockConfig = {
   preparationDurationMs: 300_000,
 };
 
-jest.unstable_mockModule('../../config/index.js', () => ({ config: mockConfig }));
+jest.unstable_mockModule('../../../src/config/index.js', () => ({ config: mockConfig }));
 
 const mockClan = {
   initialTroops: [
@@ -42,7 +42,7 @@ const mockClan = {
   ],
 };
 
-jest.unstable_mockModule('../../config/game-data-loader.js', () => ({
+jest.unstable_mockModule('../../../src/config/game-data-loader.js', () => ({
   gameData: { berserkers: mockClan },
 }));
 
@@ -52,7 +52,7 @@ const {
   launchAttack,
   abandonGame,
   startResearch,
-} = await import('./game-actions.js');
+} = await import('../../../src/game/actions/game-actions.js');
 
 // ---------------------------------------------------------------------------
 // Helpers

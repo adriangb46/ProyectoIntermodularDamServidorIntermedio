@@ -3,7 +3,7 @@
  * Cubre: constructor, deploy, returnHome, takeDamage, isDead, toJSON.
  */
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { Troop } from './troop.js';
+import { Troop } from '../../src/models/troop.js';
 
 describe('Troop', () => {
   /** @type {Troop} */

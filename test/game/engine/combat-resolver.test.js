@@ -7,7 +7,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 
 // Mock de config ANTES de importar el módulo bajo prueba
-jest.unstable_mockModule('../../config/index.js', () => ({
+jest.unstable_mockModule('../../../src/config/index.js', () => ({
   config: {
     typeAdvantageMultiplier: 1.5,
     capitalDefenseBonus: 1.1,
@@ -15,7 +15,7 @@ jest.unstable_mockModule('../../config/index.js', () => ({
   },
 }));
 
-const { resolveBattle } = await import('./combat-resolver.js');
+const { resolveBattle } = await import('../../../src/game/engine/combat-resolver.js');
 
 // ---------------------------------------------------------------------------
 // Helpers de prueba

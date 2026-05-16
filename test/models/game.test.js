@@ -6,14 +6,14 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 
 // Mock de config ANTES de importar Game (ESM: el mock debe preceder a la importación dinámica)
-jest.unstable_mockModule('../config/index.js', () => ({
+jest.unstable_mockModule('../../src/config/index.js', () => ({
   config: {
     maxEconomicCredits: 1000,
     initialResearchCredits: 500,
   },
 }));
 
-const { Game } = await import('./game.js');
+const { Game } = await import('../../src/models/game.js');
 
 // Player stub ligero para no depender del modelo real
 function makePlayerStub(characterId, isHost = false) {

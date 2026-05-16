@@ -4,8 +4,8 @@
  *        getDefendingTroops, getTotalDefensePower, toJSON.
  */
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { Player } from './player.js';
-import { Troop } from './troop.js';
+import { Player } from '../../src/models/player.js';
+import { Troop } from '../../src/models/troop.js';
 
 /** Crea un jugador de prueba con valores por defecto */
 function makePlayer(overrides = {}) {

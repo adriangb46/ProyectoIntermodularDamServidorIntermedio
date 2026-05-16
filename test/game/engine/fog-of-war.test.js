@@ -4,7 +4,7 @@
  * Es un módulo PURO: no tiene dependencias externas, se testea directamente.
  */
 import { describe, it, expect } from '@jest/globals';
-import { buildGameView } from './fog-of-war.js';
+import { buildGameView } from '../../../src/game/engine/fog-of-war.js';
 
 // ---------------------------------------------------------------------------
 // Factories de objetos de prueba
