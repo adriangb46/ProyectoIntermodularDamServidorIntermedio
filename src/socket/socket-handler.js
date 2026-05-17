@@ -627,6 +627,12 @@ export const initSocketHandler = (io, timeWheel) => {
         return;
       }
 
+      if (result.removed) {
+        dbConnector.leaveGame(game.id, charId).catch(err => {
+          logger.error({ err: err.message }, '[Socket] Error al abandonar partida en DB');
+        });
+      }
+
       const roomName = `game_${game.id}`;
 
       // Notificar a los demás según el resultado
@@ -697,6 +703,12 @@ export const initSocketHandler = (io, timeWheel) => {
       if (!result.success) {
         socket.emit('lobby:leave-error', { message: result.message });
         return;
+      }
+
+      if (result.removed) {
+        dbConnector.leaveGame(game.id, charId).catch(err => {
+          logger.error({ err: err.message }, '[Socket] Error al abandonar partida en DB (lobby)');
+        });
       }
 
       logger.info({ username, gameId: game.id, charId }, '[Socket] Jugador abandonó vía lobby');

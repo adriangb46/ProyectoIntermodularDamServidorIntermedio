@@ -305,6 +305,13 @@ class DbConnector {
     });
   }
 
+  async leaveGame(gameId, characterId) {
+    return this.fetchWithAuth(`/internal/games/${gameId}/leave`, {
+      method: 'POST',
+      body: JSON.stringify(characterId),
+    });
+  }
+
   async publishAnalyticsSnapshot(snapshotDto) {
     return this.fetchWithAuth('/internal/analytics/snapshots', {
       method: 'POST',
