@@ -119,6 +119,7 @@ function _resolveGameFinished(game, io, winnerCharacterId) {
     return;
   }
 
+  game.winnerCharacterId = winnerCharacterId || null;
   game.setPhase('finished');
   gameStore.recordFinishedGame(game.id);
 

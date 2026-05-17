@@ -16,6 +16,7 @@ export class Game {
     this.phase = 'waiting';      // Fases: waiting | preparation | war | end | finished
     this.startedAt = null;       // Timestamp de inicio real
     this.endedAt = null;         // Timestamp de finalización real
+    this.winnerCharacterId = null; // UUID del ganador (o null si es empate)
     
     // Estado de los participantes indexado por characterId
     // Se usa un objeto plano para facilitar la serialización a JSONB en Postgres
@@ -115,6 +116,7 @@ export class Game {
       phase: this.phase.toUpperCase(),
       startedAt: this.startedAt,
       endedAt: this.endedAt,
+      winnerCharacterId: this.winnerCharacterId,
       players: playersSerialized,
       eventQueue: this.eventQueue,
       battleLog: this.battleLog

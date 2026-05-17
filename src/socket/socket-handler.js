@@ -249,6 +249,7 @@ export const initSocketHandler = (io, timeWheel) => {
               id: game.id,
               status: game.phase.toUpperCase(),
               maxPlayers: game.maxPlayers,
+              winnerCharacterId: game.winnerCharacterId,
               createdAt: game.startedAt ? new Date(game.startedAt).toISOString() : new Date().toISOString(),
               participants: Object.values(game.players).map(p => ({
                 characterId: p.characterId,
