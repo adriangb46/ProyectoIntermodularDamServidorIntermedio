@@ -5,7 +5,7 @@ import { avatarUploadController, avatarUpdateUrlController } from './avatar-cont
 import { getGameAvailabilityController } from './games-controller.js';
 import { getProfileController, changePasswordController, updateEmailController } from './profile-controller.js';
 import { getAdminStatsController, listUsersController, banUserController, unbanUserController } from './admin-controller.js';
-import { getUserStatsController } from './stats-controller.js';
+import { getUserStatsController, getRankingController } from './stats-controller.js';
 import { httpAuthMiddleware, roleMiddleware } from '../middleware/auth.js';
 import { loginLimiter, registerLimiter, publicApiLimiter } from '../middleware/rate-limiter.js';
 
@@ -25,6 +25,7 @@ const upload = multer({
 httpRouter.post('/login', loginLimiter, loginController);
 httpRouter.post('/register', registerLimiter, registerController);
 httpRouter.get('/games/:code/availability', publicApiLimiter, getGameAvailabilityController);
+httpRouter.get('/ranking', publicApiLimiter, getRankingController);
 
 // Rutas protegidas
 httpRouter.post('/logout', httpAuthMiddleware, logoutController);

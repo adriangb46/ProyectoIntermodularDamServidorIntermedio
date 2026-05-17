@@ -354,6 +354,12 @@ class DbConnector {
       method: 'GET',
     });
   }
+
+  async getRanking() {
+    return this.fetchWithAuth('/internal/users/ranking', {
+      method: 'GET',
+    });
+  }
 }
 
 // Exportamos como singleton

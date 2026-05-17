@@ -23,3 +23,17 @@ export const getUserStatsController = async (req, res) => {
     res.status(500).json({ message: 'Error al recuperar las estadísticas' });
   }
 };
+
+/**
+ * Recupera el ranking público de los 3 mejores jugadores.
+ */
+export const getRankingController = async (req, res) => {
+  try {
+    const rankingResponse = await dbConnector.getRanking();
+    const ranking = rankingResponse?.data || rankingResponse || [];
+    res.json(ranking);
+  } catch (error) {
+    logger.error({ err: error.message }, '[Stats] Error al obtener el ranking público');
+    res.status(500).json({ message: 'Error al recuperar el ranking' });
+  }
+};
