@@ -4,6 +4,46 @@ import os from 'os';
 import { gameStore } from '../game/state/game-store.js';
 import { logger } from '../utils/logger.js';
 
+// --- Cálculo preciso y ultra-ligero de la carga de CPU en segundo plano ---
+let lastCpuInfo = getCpuTicks();
+let currentCpuUsage = 0;
+
+function getCpuTicks() {
+  const cpus = os.cpus() || [];
+  let user = 0, nice = 0, sys = 0, idle = 0, irq = 0;
+  for (const cpu of cpus) {
+    user += cpu.times.user;
+    nice += cpu.times.nice;
+    sys += cpu.times.sys;
+    idle += cpu.times.idle;
+    irq += cpu.times.irq;
+  }
+  const total = user + nice + sys + idle + irq;
+  return { idle, total };
+}
+
+// Se ejecuta cada 3 segundos midiendo la diferencia real de ticks de CPU
+const cpuInterval = setInterval(() => {
+  try {
+    const currentTicks = getCpuTicks();
+    const idleDifference = currentTicks.idle - lastCpuInfo.idle;
+    const totalDifference = currentTicks.total - lastCpuInfo.total;
+    
+    if (totalDifference > 0) {
+      const percentage = 100 - Math.round((idleDifference / totalDifference) * 100);
+      currentCpuUsage = Math.max(0, Math.min(100, percentage));
+    }
+    lastCpuInfo = currentTicks;
+  } catch (err) {
+    // Evitar cualquier crash inesperado del sistema de archivos o lectura de cpus
+  }
+}, 3000);
+
+// Permite que Node.js termine de forma limpia en los tests de integración sin quedar bloqueado
+if (typeof cpuInterval.unref === 'function') {
+  cpuInterval.unref();
+}
+
 /**
  * Obtiene estadísticas consolidadas para el Panel de Administrador.
  * Combina datos persistentes de la DB con métricas en tiempo real del Middle.
@@ -25,16 +65,20 @@ export const getAdminStatsController = async (req, res) => {
 
     // 2. Obtener métricas en tiempo real de la memoria del Middle Server
     const io = req.app.get('io');
-    const activeUsers = io ? io.engine.clientsCount : 0;
+    let activeUsers = 0;
+    if (io) {
+      if (io.sockets && io.sockets.sockets) {
+        activeUsers = io.sockets.sockets.size; // Conexiones Socket.IO activas directas (v4)
+      } else if (io.engine && typeof io.engine.clientsCount === 'number') {
+        activeUsers = io.engine.clientsCount; // Fallback
+      }
+    }
     const activeGames = gameStore.getAll().length;
     const finishedGamesLastHour = gameStore.countFinishedGamesInLastHour();
 
     // 3. Obtener métricas del sistema (Carga del servidor)
-    // Usamos os.loadavg() que da la carga media de 1, 5 y 15 min.
-    // Lo normalizamos a un porcentaje aproximado (0-100%) basado en el número de CPUs.
-    const cpus = os.cpus().length;
-    const load1min = os.loadavg()[0];
-    const serverLoad = Math.min(Math.round((load1min / cpus) * 100), 100);
+    // Retornamos el valor pre-calculado en background de forma instantánea O(1)
+    const serverLoad = currentCpuUsage;
 
     const stats = {
       // De DB Server
